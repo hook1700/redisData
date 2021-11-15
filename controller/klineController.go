@@ -197,7 +197,7 @@ func WsHandle(c *gin.Context) {
 					data, err := logic.GetDataByKey(msg)
 					//修改，当拿不到key重新订阅，10秒订阅一次
 					if err == redis.Nil {
-						logger.Error(errors.New("key不存在，准备开始缓存"))
+						logger.Error(errors.New(msg + "：key不存在，准备开始缓存"))
 						err := logic.StartSetKlineData()
 						if err != nil {
 							logger.Info(err)
