@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
+	"github.com/gorilla/websocket"
 	"github.com/leizongmin/huobiapi"
 	"net/http"
 	"redisData/huobi"
 	"redisData/logic"
 	"redisData/model"
+	"redisData/pkg/logger"
 	"redisData/utils"
 	"strings"
 	"sync"
@@ -66,14 +68,17 @@ func GetRedisData(c *gin.Context) {
 		ws,
 		sync.RWMutex{},
 	}
-	//if err != nil {
-	//	fmt.Println(err)
-	//	return
-	//}
-	defer ws.Close() //返回前关闭
+	defer func(ws *websocket.Conn) {
+		err := ws.Close()
+		if err != nil {
+			logger.Error(err)
+		}
+	}(ws) //返回前关闭
 	for {
+		wsConn.Mux.Lock()
 		//读取ws中的数据
 		mt, message, err := wsConn.Conn.ReadMessage()
+		wsConn.Mux.Unlock()
 		if err != nil {
 			fmt.Println(err)
 			break
@@ -94,7 +99,11 @@ func GetRedisData(c *gin.Context) {
 					if err != nil {
 						return
 					}
-					logic.StartSetKlineData()
+					StartSetKlineDataErr := logic.StartSetKlineData()
+					if StartSetKlineDataErr != nil {
+						logger.Error(StartSetKlineDataErr)
+						return
+					}
 					time.Sleep(10 * time.Second)
 				}
 				websocketData := utils.Strval(data)
@@ -102,8 +111,12 @@ func GetRedisData(c *gin.Context) {
 				err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
 				wsConn.Mux.Unlock()
 				if err != nil {
-					fmt.Println(err)
-					ws.Close()
+					logger.Error(err)
+					CloseErr := ws.Close()
+					if CloseErr != nil {
+						logger.Error(CloseErr)
+						return
+					}
 					return
 				}
 				time.Sleep(time.Second * 2)
@@ -325,8 +338,7 @@ func GetKlineHistoryController(c *gin.Context) {
 		jsondata := utils.Strval(diy)
 
 		c.JSON(http.StatusOK, gin.H{
-			"data":jsondata,
-
+			"data": jsondata,
 		})
 		return
 	}

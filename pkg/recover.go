@@ -3,9 +3,9 @@ package abnormal
 import (
 	"errors"
 	"fmt"
+	"redisData/pkg/email"
 	"redisData/pkg/logger"
 	"runtime/debug"
-
 )
 
 func Stack(description string) {
@@ -18,9 +18,9 @@ func Stack(description string) {
 		logger.Error(err1)
 		logger.Error(err2)
 		logger.Error(err3)
-		//err := email.SendEmail(description, errInfo, "543619552@qq.com")
-		//if err != nil {
-		//	logger.Error(err)
-		//}
+		err := email.SendEmail(description, errInfo, "543619552@qq.com")
+		if err != nil {
+			logger.Error(err)
+		}
 	}
 }

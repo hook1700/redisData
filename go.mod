@@ -12,6 +12,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/jmoiron/sqlx v1.3.4
+	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible // indirect
 	github.com/leizongmin/huobiapi v1.0.6
 	github.com/onsi/gomega v1.16.0 // indirect
 	github.com/satori/go.uuid v1.2.0
