@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"redisData/pkg/logger"
 	"strings"
 
 	//"encoding/json"
@@ -12,8 +13,6 @@ import (
 	"github.com/leizongmin/huobiapi"
 	"redisData/huobi"
 
-	//"github.com/leizongmin/huobiapi"
-	"go.uber.org/zap"
 	"net/http"
 	"redisData/logic"
 	"redisData/utils"
@@ -48,7 +47,7 @@ func GetRedisData2(c *gin.Context) {
 	//每个用户连接,就new一个 ws
 	ws, err := upGrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		zap.L().Error("upGrader.Upgrade fail", zap.Error(err))
+		logger.Error(err)
 		return
 	}
 	//defer ws.Close()
@@ -59,25 +58,21 @@ func GetRedisData2(c *gin.Context) {
 		ws,
 		sync.RWMutex{},
 	}
-	defer ws.Close() //返回前关闭
-
-	//每一个ws 对应一个market
-	//连接一个market
-	//market, err := huobi.NewMarket()
-	//if err != nil {
-	//	zap.L().Error("huobi.NewMarket() fail", zap.Error(err))
-	//}
-	//把这个websocket指针和user对应的hash储存起来
-	//users.Store(ws,user)
+	defer func(ws *websocket.Conn) {
+		err := ws.Close()
+		if err != nil {
+			logger.Error(err)
+		}
+	}(ws) //返回前关闭
 
 	//读取客户端信息
 	for {
 		//读取ws中的数据
 		wsConn.Mux.Lock()
-		mt, message, err := wsConn.Conn.ReadMessage()
+		mt, message, ReadMessageErr := wsConn.Conn.ReadMessage()
 		wsConn.Mux.Unlock()
 		if err != nil {
-			zap.L().Error("wsConn.Conn.ReadMessage fail", zap.Error(err))
+			logger.Error(ReadMessageErr)
 			break
 		}
 		//60秒不发送信息，关闭socket
@@ -85,35 +80,36 @@ func GetRedisData2(c *gin.Context) {
 		//把用户传进来的消息进行处理 msg样式 "market.btcusdt.kline.1min"
 		msg := string(message)
 		//-------------
-		fmt.Println(msg)
+		logger.Info(msg)
 		//当请求数据中含有1min或1step这些为已经缓存数据,直接去redis拿
 		//if strings.Contains(msg,"1min")||strings.Contains(msg,"step1"){
 		go func() {
 			for {
-				data, err := logic.GetDataByKey(msg)
-				if err != nil {
+				data, GetDataByKeyErr := logic.GetDataByKey(msg)
+				if GetDataByKeyErr != nil {
+					logger.Error(GetDataByKeyErr)
 					//如果redis数据获取或者start接口没有被调用，就要重新缓存
-					if err == redis.Nil {
+					if GetDataByKeyErr == redis.Nil {
 						wsConn.Mux.Lock()
-						err = wsConn.Conn.WriteMessage(mt, []byte("数据已过期，准备开始缓存"))
+						WriteMessageErr := wsConn.Conn.WriteMessage(mt, []byte("数据已过期，准备开始缓存"))
 						wsConn.Mux.Unlock()
-						if err != nil {
-							zap.L().Error("wsConn.Conn.WriteMessage fail", zap.Error(err))
+						if WriteMessageErr != nil {
+							logger.Error(WriteMessageErr)
 							return
 						}
-						fmt.Printf("logic.GetDataByKey fail %v", err)
+						fmt.Printf("logic.GetDataByKey fail %v", GetDataByKeyErr)
 						//5s 订阅一次，避免newMarket报错
 						//订阅k线图的数据
-						err := logic.StartSetKlineData()
-						if err != nil {
-							zap.L().Error("StartSetKlineData fail", zap.Error(err))
+						StartSetKlineDataErr := logic.StartSetKlineData()
+						if StartSetKlineDataErr != nil {
+							logger.Error(StartSetKlineDataErr)
 							return
 						}
 						time.Sleep(2 * time.Second)
 						//订阅行情的数据
-						err = logic.StartSetQuotation()
-						if err != nil {
-							zap.L().Error("StartSetQuotation fail", zap.Error(err))
+						StartSetQuotationErr := logic.StartSetQuotation()
+						if StartSetQuotationErr != nil {
+							logger.Error(StartSetQuotationErr)
 							return
 						}
 						time.Sleep(10 * time.Second)
@@ -125,96 +121,19 @@ func GetRedisData2(c *gin.Context) {
 				err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
 				wsConn.Mux.Unlock()
 				if err != nil {
-					zap.L().Error("wsConn.Conn.WriteMessage fail", zap.Error(err))
-					ws.Close()
+					logger.Error(err)
+					err := ws.Close()
+					if err != nil {
+						logger.Error(err)
+						return
+					}
 					return
 				}
 				//每2s推送一次
 				time.Sleep(time.Second * 2)
 			}
 		}()
-
-		//}
-		//第二部分逻辑  输入参数为"market.btcusdt.kline.5min" ，等数据库不存在的数据，直接转发60秒后取消订阅，刷新后重新订阅（先不做看性能如何）
-		//如果请求的是market.ethbtc.kline.5min,订阅这条信息，然后再返回
-		//msg 用户输入的数据byte转string
-		//直接拿msg去订阅
-		//连接一个market
-		//market, err := huobi.NewMarket()
-		fmt.Println("这是第二个流程")
-		//fmt.Println(msg)
-		//str := "market.btcusdt.kline.5min"
-		//newMsg := string([]byte(msg)[1:len([]byte(msg))-1])
-		//if newMsg != str{
-		//	println(str+"111")
-		//	println(newMsg+"222")
-		//	println("1111111")
-		//}
-
-		//-----------------------
-		//newMsg := string([]byte(msg)[1:len([]byte(msg))-1])
-		//if true{
-		//	err := market.Subscribe(newMsg, func(topic string, hjson *huobiapi.JSON) {
-		//		if err != nil{
-		//			zap.L().Error("market.Subscrib fail", zap.Error(err))
-		//		}
-		//		//订阅成功
-		//		//fmt.Println("订阅成功")
-		//		//120后自动取消订阅
-		//		go func() {
-		//			time.Sleep(1*time.Minute)
-		//			//fmt.Println("取消订阅成功")
-		//			market.Unsubscribe(newMsg)
-		//			//market.ReceiveTimeout
-		//
-		//		}()
-		//
-		//		// 收到数据更新时回调
-		//		fmt.Println(topic, hjson)
-		//		jsondata, err := hjson.MarshalJSON()
-		//		if err != nil {
-		//			zap.L().Error("hjson.MarshalJSON  fail", zap.Error(err))
-		//			return
-		//		}
-		//		//把jsondata反序列化后进行，自由币判断运算
-		//		klineData := huobi.SubData{}
-		//		err = json.Unmarshal(jsondata, &klineData)
-		//		if err != nil {
-		//			zap.L().Error("json.Unmarshal  fail", zap.Error(err))
-		//			return
-		//		}
-		//		//自由币换算
-		//		tranData := logic.TranDecimalScale2(msg, klineData)
-		//		//结构体序列化后返回
-		//		data, err := json.Marshal(tranData)
-		//		if err != nil {
-		//			zap.L().Error("json.Marshal(tranData)  fail", zap.Error(err))
-		//			return
-		//		}
-		//		//返回数据给用户
-		//		wsConn.Mux.Lock()
-		//		err = wsConn.Conn.WriteMessage(mt, data)
-		//		wsConn.Mux.Unlock()
-		//		//time.Sleep(2*time.Second)
-		//		if err != nil {
-		//			fmt.Println(err)
-		//			ws.Close()
-		//
-		//		}
-		//
-		//	})
-		//	if err != nil {
-		//		return
-		//	}
-		//}
-
-		//market.Loop()
-		//ws.SetCloseHandler(func(code int, text string) error {
-		//	market.Close()
-		//	fmt.Println(code, text)
-		//	return nil
-		//})
-		//-----------------
+		logger.Info("这是第二个流程")
 
 	}
 
@@ -223,43 +142,45 @@ func GetRedisData2(c *gin.Context) {
 func WsHandle(c *gin.Context) {
 	//升级get请求为webSocket协议
 	ws, CloseErr := upGrader.Upgrade(c.Writer, c.Request, nil)
+	if CloseErr != nil {
+		logger.Info(CloseErr.Error())
+	}
 	wsConn := &WsConn{
 		ws,
 		sync.RWMutex{},
 	}
 	//if err != nil {
-	//	fmt.Println(err)
+	//	logger.Info(err)
 	//	return
 	//}
-	defer ws.Close() //返回前关闭
-	market, err := huobi.NewMarket()
-	if err != nil {
-		fmt.Println(111)
-		fmt.Println(err)
-		fmt.Println(666)
-	}
+	defer func(ws *websocket.Conn) {
+		err := ws.Close()
+		if err != nil {
+			logger.Error(err)
+		}
+	}(ws) //返回前关闭
 	for {
-		if CloseErr != nil {
-			fmt.Println(123456)
-			fmt.Println(CloseErr)
-			fmt.Println(err)
-			fmt.Println(123456)
+		market, err := huobi.NewMarket()
+		if err != nil {
+			logger.Info(111)
+			logger.Info(err)
+			logger.Info(666)
 		}
 		//读取ws中的数据
 		mt, message, err := wsConn.Conn.ReadMessage()
 		if err != nil {
-			fmt.Println(666)
+			logger.Info(666)
 			marketErr := market.Close()
 			if marketErr != nil {
-				fmt.Println("关闭连接失败1")
-				fmt.Println(marketErr.Error())
-				fmt.Println("关闭连接失败2")
+				logger.Info("关闭连接失败1")
+				logger.Info(marketErr.Error())
+				logger.Info("关闭连接失败2")
 				return
 			} else {
-				fmt.Println("关闭成功")
+				logger.Info("关闭成功")
 			}
-			fmt.Println(err)
-			fmt.Println(666)
+			logger.Info(err)
+			logger.Info(666)
 			break
 		}
 		//对数据进行切割，读取参数
@@ -267,7 +188,7 @@ func WsHandle(c *gin.Context) {
 		msg := string(message)
 		newMsg := string([]byte(msg)[1 : len([]byte(msg))-1])
 		//打印请求参数
-		fmt.Println(newMsg)
+		logger.Info(newMsg)
 
 		if strings.Contains(msg, "1min") || strings.Contains(msg, "step1") {
 			go func() {
@@ -279,7 +200,11 @@ func WsHandle(c *gin.Context) {
 						if err != nil {
 							return
 						}
-						logic.StartSetKlineData()
+						err := logic.StartSetKlineData()
+						if err != nil {
+							logger.Info(err)
+							return
+						}
 						time.Sleep(10 * time.Second)
 					}
 					websocketData := utils.Strval(data)
@@ -287,8 +212,12 @@ func WsHandle(c *gin.Context) {
 					err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
 					wsConn.Mux.Unlock()
 					if err != nil {
-						fmt.Println(err)
-						ws.Close()
+						logger.Info(err)
+						wsErr := ws.Close()
+						if wsErr != nil {
+							logger.Info(wsErr)
+							return
+						}
 						return
 					}
 					time.Sleep(time.Second * 2)
@@ -302,41 +231,42 @@ func WsHandle(c *gin.Context) {
 
 					go func() {
 						err = market.Subscribe(newMsg, func(topic string, hjson *huobiapi.JSON) {
-							fmt.Println(msg)
+							logger.Info(msg)
 							if err != nil {
-								zap.L().Error("market.Subscrib fail", zap.Error(err))
+								logger.Error(err)
 							}
 							//订阅成功
-							//fmt.Println("订阅成功")
+							//logger.Info("订阅成功")
 							//120后自动取消订阅
 							go func() {
 								time.Sleep(1 * time.Minute)
-								//fmt.Println("取消订阅成功")
+								//logger.Info("取消订阅成功")
 								market.Unsubscribe(newMsg)
 								//market.ReceiveTimeout
 
 							}()
 
 							// 收到数据更新时回调
-							fmt.Println(topic, hjson)
-							jsondata, err := hjson.MarshalJSON()
+							logger.Info(topic)
+							logger.Info(hjson)
+							jsondata, MarshalJSONErr := hjson.MarshalJSON()
 							if err != nil {
-								zap.L().Error("hjson.MarshalJSON  fail", zap.Error(err))
+								logger.Error(MarshalJSONErr)
 								return
 							}
 							//把jsondata反序列化后进行，自由币判断运算
 							klineData := huobi.SubData{}
 							err = json.Unmarshal(jsondata, &klineData)
 							if err != nil {
-								zap.L().Error("json.Unmarshal  fail", zap.Error(err))
+								logger.Error(err)
 								return
 							}
 							//自由币换算
 							tranData := logic.TranDecimalScale2(msg, klineData)
 							//结构体序列化后返回
-							data, err := json.Marshal(tranData)
+							data, MarshalErr := json.Marshal(tranData)
 							if err != nil {
-								zap.L().Error("json.Marshal(tranData)  fail", zap.Error(err))
+								logger.Info(MarshalErr)
 								return
 							}
 							//返回数据给用户
@@ -345,8 +275,12 @@ func WsHandle(c *gin.Context) {
 							wsConn.Mux.Unlock()
 							//time.Sleep(2*time.Second)
 							if err != nil {
-								fmt.Println(err)
-								ws.Close()
+								logger.Info(err)
+								wsErr := ws.Close()
+								if wsErr != nil {
+									logger.Info(wsErr)
+									return
+								}
 
 							}
 
@@ -375,20 +309,21 @@ func WsHandle2(c *gin.Context) {
 		ws,
 		sync.RWMutex{},
 	}
-	//if err != nil {
-	//	fmt.Println(err)
-	//	return
-	//}
-	defer ws.Close() //返回前关闭
-	market, err := huobi.NewMarket()
-	if err != nil {
-		fmt.Println(err)
-	}
+	defer func(ws *websocket.Conn) {
+		err := ws.Close()
+		if err != nil {
+			logger.Error(err)
+		}
+	}(ws) //返回前关闭
 	for {
+		market, err := huobi.NewMarket()
+		if err != nil {
+			logger.Info(err)
+		}
 		//读取ws中的数据
 		mt, message, err := wsConn.Conn.ReadMessage()
 		if err != nil {
-			fmt.Println(err)
+			logger.Info(err)
 			break
 		}
 		//对数据进行切割，读取参数
@@ -396,7 +331,7 @@ func WsHandle2(c *gin.Context) {
 		msg := string(message)
 		newMsg := string([]byte(msg)[1 : len([]byte(msg))-1])
 		//打印请求参数
-		fmt.Println(newMsg)
+		logger.Info(newMsg)
 
 		//写入ws数据
 		go func() {
@@ -404,41 +339,41 @@ func WsHandle2(c *gin.Context) {
 
 				go func() {
 					err = market.Subscribe(newMsg, func(topic string, hjson *huobiapi.JSON) {
-						fmt.Println(msg)
+						logger.Info(msg)
 						if err != nil {
-							zap.L().Error("market.Subscrib fail", zap.Error(err))
+							logger.Error(err)
 						}
 						//订阅成功
-						//fmt.Println("订阅成功")
+						//logger.Info("订阅成功")
 						//120后自动取消订阅
 						go func() {
 							time.Sleep(1 * time.Minute)
-							//fmt.Println("取消订阅成功")
+							//logger.Info("取消订阅成功")
 							market.Unsubscribe(newMsg)
 							//market.ReceiveTimeout
 
 						}()
-
 						// 收到数据更新时回调
-						fmt.Println(topic, hjson)
-						jsondata, err := hjson.MarshalJSON()
+						logger.Info(topic)
+						logger.Info(hjson)
+						jsondata, MarshalJSONErr := hjson.MarshalJSON()
 						if err != nil {
-							zap.L().Error("hjson.MarshalJSON  fail", zap.Error(err))
+							logger.Error(MarshalJSONErr)
 							return
 						}
 						//把jsondata反序列化后进行，自由币判断运算
 						klineData := huobi.SubData{}
 						err = json.Unmarshal(jsondata, &klineData)
 						if err != nil {
-							zap.L().Error("json.Unmarshal  fail", zap.Error(err))
+							logger.Error(err)
 							return
 						}
 						//自由币换算
 						tranData := logic.TranDecimalScale2(msg, klineData)
 						//结构体序列化后返回
-						data, err := json.Marshal(tranData)
-						if err != nil {
-							zap.L().Error("json.Marshal(tranData)  fail", zap.Error(err))
+						data, dataErr := json.Marshal(tranData)
+						if dataErr != nil {
+							logger.Error(dataErr)
 							return
 						}
 						//返回数据给用户
@@ -447,8 +382,12 @@ func WsHandle2(c *gin.Context) {
 						wsConn.Mux.Unlock()
 						//time.Sleep(2*time.Second)
 						if err != nil {
-							fmt.Println(err)
-							ws.Close()
+							logger.Info(err)
+							err := ws.Close()
+							if err != nil {
+								logger.Info(err)
+								return
+							}
 
 						}
 

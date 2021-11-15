@@ -1,18 +1,19 @@
 package logger
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"net"
-	"net/http"
-	"net/http/httputil"
+	"io/ioutil"
 	"os"
-	"runtime/debug"
-	"strings"
-	"time"
+	abnormal "redisData/pkg"
+	"redisData/pkg/logger"
 )
 
 var lg *zap.Logger
@@ -70,71 +71,36 @@ func getLogWriter(filename string, maxSize, maxBackup, maxAge int) zapcore.Write
 	return zapcore.AddSync(lumberJackLogger)
 }
 
-// GinLogger 接收gin框架默认的日志
-func GinLogger() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		path := c.Request.URL.Path
-		query := c.Request.URL.RawQuery
-		c.Next()
+const DefaultHeader = "Tracking-Id"
 
-		cost := time.Since(start)
-		zap.L().Info(path,
-			zap.Int("status", c.Writer.Status()),
-			zap.String("method", c.Request.Method),
-			zap.String("path", path),
-			zap.String("query", query),
-			zap.String("ip", c.ClientIP()),
-			zap.String("user-agent", c.Request.UserAgent()),
-			zap.String("errors", c.Errors.ByType(gin.ErrorTypePrivate).String()),
-			zap.Duration("cost", cost),
-		)
-	}
-}
-
-// GinRecovery recover掉项目可能出现的panic，并使用zap记录相关日志
-func GinRecovery(stack bool) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		defer func() {
-			if err := recover(); err != nil {
-				// Check for a broken connection, as it is not really a
-				// condition that warrants a panic stack trace.
-				var brokenPipe bool
-				if ne, ok := err.(*net.OpError); ok {
-					if se, ok := ne.Err.(*os.SyscallError); ok {
-						if strings.Contains(strings.ToLower(se.Error()), "broken pipe") || strings.Contains(strings.ToLower(se.Error()), "connection reset by peer") {
-							brokenPipe = true
-						}
-					}
-				}
-
-				httpRequest, _ := httputil.DumpRequest(c.Request, false)
-				if brokenPipe {
-					lg.Error(c.Request.URL.Path,
-						zap.Any("error", err),
-						zap.String("request", string(httpRequest)),
-					)
-					// If the connection is dead, we can't write a status to it.
-					c.Error(err.(error)) // nolint: errcheck
-					c.Abort()
-					return
-				}
-
-				if stack {
-					lg.Error("[Recovery from panic]",
-						zap.Any("error", err),
-						zap.String("request", string(httpRequest)),
-						zap.String("stack", string(debug.Stack())),
-					)
-				} else {
-					lg.Error("[Recovery from panic]",
-						zap.Any("error", err),
-						zap.String("request", string(httpRequest)),
-					)
-				}
-				c.AbortWithStatus(http.StatusInternalServerError)
-			}
-		}()
-		c.Next()
+func TraceLogger() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		defer abnormal.Stack("服务器抛出异常")
+		// 每个请求生成的请求RequestId具有全局唯一性
+		RequestId := ctx.GetHeader(DefaultHeader)
+		// 如果不存在，则生成TrackingID
+		if RequestId == "" {
+			RequestId = uuid.New().String()
+			ctx.Header(DefaultHeader, RequestId)
+		}
+		fmt.Printf("当前请求ID为：%v\n", RequestId)
+		ctx.Set(DefaultHeader, RequestId)
+		logger.RequestId = RequestId
+		logger.NewContext(ctx, zap.String("RequestId", RequestId))
+		// 为日志添加请求的地址以及请求参数等信息
+		logger.NewContext(ctx, zap.String("request.method", ctx.Request.Method))
+		logger.NewContext(ctx, zap.String("request.url", ctx.Request.URL.String()))
+		headers, _ := json.Marshal(ctx.Request.Header)
+		logger.NewContext(ctx, zap.String("request.headers", string(headers)))
+		// 将请求参数json序列化后添加进日志上下文
+		data, err := ctx.GetRawData()
+		if err != nil {
+			logger.Error(err)
+		}
+		// 很关键,把读过的字节流重新放到body
+		ctx.Request.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+		logger.NewContext(ctx, zap.Any("request.params", string(data)))
+		logger.WithContext(ctx).Info("请求信息："+RequestId, zap.Skip())
+		ctx.Next()
 	}
 }
