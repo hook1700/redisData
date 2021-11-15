@@ -150,10 +150,6 @@ func WsHandle(c *gin.Context) {
 		ws,
 		sync.RWMutex{},
 	}
-	//if err != nil {
-	//	logger.Info(err)
-	//	return
-	//}
 	defer func(ws *websocket.Conn) {
 		err := ws.Close()
 		if err != nil {
@@ -194,18 +190,23 @@ func WsHandle(c *gin.Context) {
 		if strings.Contains(msg, "1min") || strings.Contains(msg, "step1") {
 			go func() {
 				for {
-					data, err := logic.GetDataByKey(msg)
+					data, GetDataByKeyErr := logic.GetDataByKey(msg)
 					//修改，当拿不到key重新订阅，10秒订阅一次
-					if err == redis.Nil {
+					if GetDataByKeyErr == redis.Nil {
 						logger.Error(errors.New(msg + "：key不存在，准备开始缓存"))
-						err := logic.StartSetKlineData()
-						if err != nil {
-							logger.Info(err)
+						StartSetKlineDataErr := logic.StartSetKlineData()
+						if StartSetKlineDataErr != nil {
+							logger.Info(StartSetKlineDataErr)
 							return
 						}
 						time.Sleep(10 * time.Second)
 					}
 					websocketData := utils.Strval(data)
+					if len(websocketData) <= 0 {
+						logger.Info("空数据，不推送:websocketData")
+						logger.Info(websocketData)
+						return
+					}
 					wsConn.Mux.Lock()
 					err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
 					//logger.Info(websocketData)
@@ -264,8 +265,13 @@ func WsHandle(c *gin.Context) {
 							tranData := logic.TranDecimalScale2(msg, klineData)
 							//结构体序列化后返回
 							data, MarshalErr := json.Marshal(tranData)
-							if err != nil {
+							if MarshalErr != nil {
 								logger.Info(MarshalErr)
+								return
+							}
+							if len(data) <= 0 {
+								logger.Info("空数据，不推送:data")
+								logger.Info(data)
 								return
 							}
 							//返回数据给用户
