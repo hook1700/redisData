@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"redisData/dao/mysql"
 	"redisData/dao/redis"
+	"redisData/pkg/logger"
+	"redisData/pkg/translate"
 )
 
 type SubData struct {
@@ -39,8 +41,8 @@ type Ticks struct {
 }
 
 type Data struct {
-	Ch     string `json:"ch"`
-	Ts     int64  `json:"ts"`
+	Ch       string `json:"ch"`
+	Ts       int64  `json:"ts"`
 	TickData string `json:"tick"`
 }
 
@@ -68,7 +70,7 @@ func NewSubscribe() {
 		return
 	}
 	for _, value := range *allSymbol {
-		market.Subscribe(fmt.Sprintf("market.%s.kline.1min", value.Name), func(topic string, hjson *huobiapi.JSON) {
+		SubscribeERR := market.Subscribe(fmt.Sprintf("market.%s.kline.1min", value.Name), func(topic string, hjson *huobiapi.JSON) {
 			// 收到数据更新时回调
 			//fmt.Println(topic, json)
 
@@ -88,24 +90,31 @@ func NewSubscribe() {
 				fmt.Printf("mysql.GetDecimalScaleBySymbols fail err:%v", err)
 				return
 			}
+			logger.Info("自有币数开始处理")
+			logger.Info(decimalscale.Value)
+			logger.Info(subData)
 			//对数据和自有币位数进行运算，返回修改后的数据
 			if decimalscale.Value > 0 {
-				subData.Amount = subData.Amount * float64(decimalscale.Value) * 0.01
-				subData.Open = subData.Open * float64(decimalscale.Value) * 0.01
-				subData.Close = subData.Close * float64(decimalscale.Value) * 0.01
-				subData.Low = subData.Low * float64(decimalscale.Value) * 0.01
-				subData.High = subData.High * float64(decimalscale.Value) * 0.01
-				subData.Vol = subData.Vol * float64(decimalscale.Value) * 0.01
+				logger.Info("自由比位数大于零")
+				subData.Amount = translate.Decimal(subData.Amount * float64(decimalscale.Value) * 0.01)
+				subData.Open = translate.Decimal(subData.Open * float64(decimalscale.Value) * 0.01)
+				subData.Close = translate.Decimal(subData.Close * float64(decimalscale.Value) * 0.01)
+				subData.Low = translate.Decimal(subData.Low * float64(decimalscale.Value) * 0.01)
+				subData.High = translate.Decimal(subData.High * float64(decimalscale.Value) * 0.01)
+				subData.Vol = translate.Decimal(subData.Vol * float64(decimalscale.Value) * 0.01)
 			}
 			if decimalscale.Value < 0 {
+				logger.Info("自由比位数xiao于零")
 				decimalscale.Value = decimalscale.Value * -1
-				subData.Amount = subData.Amount / float64(decimalscale.Value) * 0.01
-				subData.Open = subData.Open / float64(decimalscale.Value) * 0.01
-				subData.Close = subData.Close / float64(decimalscale.Value) * 0.01
-				subData.Low = subData.Low / float64(decimalscale.Value) * 0.01
-				subData.High = subData.High / float64(decimalscale.Value) * 0.01
-				subData.Vol = subData.Vol / float64(decimalscale.Value) * 0.01
+				subData.Amount = translate.Decimal(subData.Amount / float64(decimalscale.Value) * 0.01)
+				subData.Open = translate.Decimal(subData.Open / float64(decimalscale.Value) * 0.01)
+				subData.Close = translate.Decimal(subData.Close / float64(decimalscale.Value) * 0.01)
+				subData.Low = translate.Decimal(subData.Low / float64(decimalscale.Value) * 0.01)
+				subData.High = translate.Decimal(subData.High / float64(decimalscale.Value) * 0.01)
+				subData.Vol = translate.Decimal(subData.Vol / float64(decimalscale.Value) * 0.01)
 			}
+			logger.Info("自有币数据处理完毕")
+			logger.Info(subData)
 			//取出ch当key
 			ch := subData.Ch
 			//把修改后的对象反序列化，存进redis
@@ -115,10 +124,14 @@ func NewSubscribe() {
 			}
 			//根据推送返回的数据，以字符串的形式存入reids
 			//redis.CreateOrChangeKline(topic, string(redisData))
-			redis.CreateOrChangeKline(fmt.Sprintf("\"%s\"",ch), string(redisData))
+			redis.CreateOrChangeKline(fmt.Sprintf("\"%s\"", ch), string(redisData))
 			//fmt.Println(string(redisData))
 
 		})
+		if SubscribeERR != nil {
+			logger.Error(SubscribeERR)
+			return
+		}
 	}
 	market.Loop()
 }
@@ -199,8 +212,7 @@ func NewQuotation() {
 	market.Loop()
 }
 
-
-func NewSubscribeParam(symbol string,period string){
+func NewSubscribeParam(symbol string, period string) {
 	// 创建客户端实例
 	market, err := huobiapi.NewMarket()
 	if err != nil {
@@ -220,7 +232,7 @@ func NewSubscribeParam(symbol string,period string){
 	//	return
 	//}
 
-	market.Subscribe(fmt.Sprintf("market.%s.kline.%s", symbol,period), func(topic string, hjson *huobiapi.JSON) {
+	market.Subscribe(fmt.Sprintf("market.%s.kline.%s", symbol, period), func(topic string, hjson *huobiapi.JSON) {
 		// 收到数据更新时回调
 		//fmt.Println(topic, json)
 
@@ -267,7 +279,7 @@ func NewSubscribeParam(symbol string,period string){
 		}
 		//根据推送返回的数据，以字符串的形式存入reids
 		//redis.CreateOrChangeKline(topic, string(redisData))
-		redis.CreateOrChangeKline(fmt.Sprintf("\"%s\"",ch), string(redisData))
+		redis.CreateOrChangeKline(fmt.Sprintf("\"%s\"", ch), string(redisData))
 		//fmt.Println(string(redisData))
 
 	})
