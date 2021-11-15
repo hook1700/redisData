@@ -1,3 +1,4 @@
 .idea/
 tmp/
+conf/config.yaml
 logs/*.log

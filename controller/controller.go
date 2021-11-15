@@ -75,10 +75,10 @@ func GetRedisData(c *gin.Context) {
 		}
 	}(ws) //返回前关闭
 	for {
-		wsConn.Mux.Lock()
+		//wsConn.Mux.Lock()
 		//读取ws中的数据
 		mt, message, err := wsConn.Conn.ReadMessage()
-		wsConn.Mux.Unlock()
+		//wsConn.Mux.Unlock()
 		if err != nil {
 			fmt.Println(err)
 			break
