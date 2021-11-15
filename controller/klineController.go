@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"errors"
 	"redisData/pkg/logger"
 	"strings"
 
@@ -196,10 +197,7 @@ func WsHandle(c *gin.Context) {
 					data, err := logic.GetDataByKey(msg)
 					//修改，当拿不到key重新订阅，10秒订阅一次
 					if err == redis.Nil {
-						err = wsConn.Conn.WriteMessage(mt, []byte("key不存在，准备开始缓存"))
-						if err != nil {
-							return
-						}
+						logger.Error(errors.New("key不存在，准备开始缓存"))
 						err := logic.StartSetKlineData()
 						if err != nil {
 							logger.Info(err)
