@@ -90,7 +90,7 @@ func GetRedisData(c *gin.Context) {
 				data, err := logic.GetDataByKey(strMsg)
 				//修改，当拿不到key重新订阅，10秒订阅一次
 				if err == redis.Nil {
-					err = wsConn.Conn.WriteMessage(mt, []byte("key不存在，准备开始缓存"))
+					//err = wsConn.Conn.WriteMessage(mt, []byte("key不存在，准备开始缓存"))
 					if err != nil {
 						return
 					}
@@ -324,7 +324,10 @@ func GetKlineHistoryController(c *gin.Context) {
 		}
 		jsondata := utils.Strval(diy)
 
-		c.JSON(http.StatusOK, jsondata)
+		c.JSON(http.StatusOK, gin.H{
+			"data":jsondata,
+
+		})
 		return
 	}
 	//period != 1min,请求时再缓存
