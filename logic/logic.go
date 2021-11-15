@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -271,7 +272,7 @@ func TranDecimalScale(symbol string,data model.KlineData) *model.KlineData {
 }
 
 // TranDecimalScale2 封装自由币换算,修改下参数,从symbol改成sub
-func TranDecimalScale2(sub string,data model.KlineData) *model.KlineData {
+func TranDecimalScale2(sub string,subData huobi.SubData) *huobi.SubData {
 	//字符串切割 去双引号
 	sub = string([]byte(sub)[1:len(sub)-1])
 	//通过“.”分割,取出symbol
@@ -286,23 +287,36 @@ func TranDecimalScale2(sub string,data model.KlineData) *model.KlineData {
 	}
 	//对数据和自有币位数进行运算，返回修改后的数据
 
-	for i := 0;i < len(data.Data);i++{
+	//for i := 0;i < len(data.Data);i++{
 		if decimalscale.Value > 0{
-			data.Data[i].Amount = data.Data[i].Amount * float64(decimalscale.Value) * 0.01
-			data.Data[i].Open = data.Data[i].Open * float64(decimalscale.Value) * 0.01
-			data.Data[i].Close = data.Data[i].Close * float64(decimalscale.Value) * 0.01
-			data.Data[i].Low = data.Data[i].Low * float64(decimalscale.Value) * 0.01
-			data.Data[i].High = data.Data[i].High * float64(decimalscale.Value) * 0.01
-			data.Data[i].Vol = data.Data[i].Vol * float64(decimalscale.Value) * 0.01
+			//data.Data[i].Amount = data.Data[i].Amount * float64(decimalscale.Value) * 0.01
+			//data.Data[i].Open = data.Data[i].Open * float64(decimalscale.Value) * 0.01
+			//data.Data[i].Close = data.Data[i].Close * float64(decimalscale.Value) * 0.01
+			//data.Data[i].Low = data.Data[i].Low * float64(decimalscale.Value) * 0.01
+			//data.Data[i].High = data.Data[i].High * float64(decimalscale.Value) * 0.01
+			//data.Data[i].Vol = data.Data[i].Vol * float64(decimalscale.Value) * 0.01
+			subData.Amount = subData.Amount * float64(decimalscale.Value) * 0.01
+			subData.Open = subData.Open * float64(decimalscale.Value) * 0.01
+			subData.Close = subData.Close * float64(decimalscale.Value) * 0.01
+			subData.Low = subData.Low * float64(decimalscale.Value) * 0.01
+			subData.High = subData.High * float64(decimalscale.Value) * 0.01
+			subData.Vol = subData.Vol * float64(decimalscale.Value) * 0.01
 		}
 		if decimalscale.Value < 0 {
 			decimalscale.Value = decimalscale.Value * -1
-			data.Data[i].Amount = data.Data[i].Amount / float64(decimalscale.Value) * 0.01
-			data.Data[i].Open = data.Data[i].Open / float64(decimalscale.Value) * 0.01
-			data.Data[i].Close = data.Data[i].Close / float64(decimalscale.Value) * 0.01
-			data.Data[i].Low = data.Data[i].Low / float64(decimalscale.Value) * 0.01
-			data.Data[i].High = data.Data[i].High / float64(decimalscale.Value) * 0.01
-			data.Data[i].Vol = data.Data[i].Vol / float64(decimalscale.Value) * 0.01
+			//data.Data[i].Amount = data.Data[i].Amount / float64(decimalscale.Value) * 0.01
+			//data.Data[i].Open = data.Data[i].Open / float64(decimalscale.Value) * 0.01
+			//data.Data[i].Close = data.Data[i].Close / float64(decimalscale.Value) * 0.01
+			//data.Data[i].Low = data.Data[i].Low / float64(decimalscale.Value) * 0.01
+			//data.Data[i].High = data.Data[i].High / float64(decimalscale.Value) * 0.01
+			//data.Data[i].Vol = data.Data[i].Vol / float64(decimalscale.Value) * 0.01
+			decimalscale.Value = decimalscale.Value * -1
+			subData.Amount = subData.Amount / float64(decimalscale.Value) * 0.01
+			subData.Open = subData.Open / float64(decimalscale.Value) * 0.01
+			subData.Close = subData.Close / float64(decimalscale.Value) * 0.01
+			subData.Low = subData.Low / float64(decimalscale.Value) * 0.01
+			subData.High = subData.High / float64(decimalscale.Value) * 0.01
+			subData.Vol = subData.Vol / float64(decimalscale.Value) * 0.01
 		}
 
 		//序列化内部数据
@@ -312,13 +326,31 @@ func TranDecimalScale2(sub string,data model.KlineData) *model.KlineData {
 		//	return nil
 		//}
 
-	}
+	//}
 
-	return &data
+	return &subData
 }
 
 //判断key是否已经缓存
 func ExistKey(key string)  bool {
 	existKey := redis.ExistKey(key)
 	return existKey
+}
+
+func InitStartData()  {
+	//启动获取k线图数据
+	if err := StartSetKlineData(); err != nil {
+		fmt.Printf("logic.StartSetKlineData() fail err:%v", err)
+	}
+	//启动获取行情数据
+	if err := StartSetQuotation(); err != nil {
+		fmt.Printf("logic.StartSetQuotation() fail err:%v", err)
+	}
+	go func() {
+		err := SetKlineHistory()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
+	zap.L().Debug("初始化数据执行完毕")
 }

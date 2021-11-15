@@ -129,7 +129,7 @@ func NewQuotation() {
 	market, err := huobiapi.NewMarket()
 	if err != nil {
 		fmt.Println(err)
-		err = market.ReConnect()
+		//err = market.ReConnect()
 		if err != nil {
 			fmt.Println(err)
 			panic(err)

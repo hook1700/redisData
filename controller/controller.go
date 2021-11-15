@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
-	"github.com/gorilla/websocket"
 	"github.com/leizongmin/huobiapi"
 	"net/http"
 	"redisData/huobi"
@@ -19,16 +18,16 @@ import (
 
 //设置websocket
 //CheckOrigin防止跨站点的请求伪造
-var upGrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
-
-type WsConn struct {
-	*websocket.Conn
-	Mux sync.RWMutex
-}
+//var upGrader = websocket.Upgrader{
+//	CheckOrigin: func(r *http.Request) bool {
+//		return true
+//	},
+//}
+//
+//type WsConn struct {
+//	*websocket.Conn
+//	Mux sync.RWMutex
+//}
 
 
 //wsConn.Mux.Lock() //加锁

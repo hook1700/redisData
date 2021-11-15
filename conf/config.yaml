@@ -13,6 +13,13 @@ dataNum: 300
 #  pool_size: 100
 #
 #
+log:
+  level: "error"
+  filename: "huobiService.log"
+  max_size: 200
+  max_age: 30
+  max_backups: 7
+
 mysql:
   host: "10.10.10.200"
   port: 3306
