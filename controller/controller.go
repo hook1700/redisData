@@ -29,12 +29,9 @@ import (
 //	Mux sync.RWMutex
 //}
 
-
 //wsConn.Mux.Lock() //加锁
 //err=wsConn.Conn.WriteMessage(websocket.TextMessage,msgByte)
 //wsConn.Mux.Unlock()
-
-
 
 // StartController 每次先手动启动一下
 func StartController(c *gin.Context) {
@@ -143,7 +140,7 @@ func GetRedisData4(c *gin.Context) {
 		//拿到参数进行校验
 		//如果含有1min中直接请求redis
 		b := strings.Contains(string(message), "1min")
-		if b == true{
+		if b == true {
 			//直接查询redis
 			go func() {
 				for {
@@ -276,7 +273,7 @@ func QuotationController(c *gin.Context) {
 //https://api.huobi.pro/market/history/kline?period=1day&size=200&symbol=btcusdt
 
 // KlineHistoryController 每10秒缓存300条数据  已经移入start里面了
-func KlineHistoryController(c *gin.Context)  {
+func KlineHistoryController(c *gin.Context) {
 	//参数校验-无
 	//逻辑处理
 	go func() {
@@ -288,14 +285,14 @@ func KlineHistoryController(c *gin.Context)  {
 	}()
 
 	//返回参数
-	c.JSON(http.StatusOK,gin.H{
-		"msg" : "保存K线图历史数据成功",
+	c.JSON(http.StatusOK, gin.H{
+		"msg": "保存K线图历史数据成功",
 	})
 
 }
 
 // GetKlineHistoryController 通过key获取历史300条数据
-func GetKlineHistoryController(c *gin.Context)  {
+func GetKlineHistoryController(c *gin.Context) {
 	//参数检验
 	//校验参数，不写直接给默认值
 	symbol := c.Query("symbol")
@@ -317,24 +314,24 @@ func GetKlineHistoryController(c *gin.Context)  {
 	//判断key是否存在，存在直接拿
 	key := fmt.Sprintf("\"market.%s.kline.%s\"", symbol, period)
 	res := logic.ExistKey(key)
-	if res == true{
+	if res == true {
 		fmt.Println("key已经存在")
 		//直接从reids查询返回
 		diy, err := logic.GetKlineHistoryDiy(symbol, period)
 		if err != nil {
 			fmt.Println(err)
-			return 
+			return
 		}
 		jsondata := utils.Strval(diy)
 
-		c.JSON(http.StatusOK,jsondata)
+		c.JSON(http.StatusOK, jsondata)
 		return
 	}
 	//period != 1min,请求时再缓存
-	if period != "1min"{
+	if period != "1min" {
 		fmt.Println("period != 1min")
 		//请求火币网，拿到数据换算，存进redis ,取redis
-		kilneData, err := logic.RequestHuobiKilne(symbol,period)
+		kilneData, err := logic.RequestHuobiKilne(symbol, period)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -347,32 +344,30 @@ func GetKlineHistoryController(c *gin.Context)  {
 			return
 		}
 		//自有币换算
-		tranData := logic.TranDecimalScale(symbol,data)
+		tranData := logic.TranDecimalScale(symbol, data)
 		//序列化
 		jsonData, err := json.Marshal(tranData)
-		if err != nil{
+		if err != nil {
 			fmt.Println(jsonData)
 		}
 		//存进redis
-		logic.CreateHistoryKline(fmt.Sprintf("\"market.%s.kline.%s\"",symbol,period),string(jsonData))
+		logic.CreateHistoryKline(fmt.Sprintf("\"market.%s.kline.%s\"", symbol, period), string(jsonData))
 		//logic.GetKlineHistory(fmt.Sprintf("\"market.%s.kline.%s\"",symbol,period),string(tranData))
-		c.JSON(http.StatusOK,gin.H{
+		c.JSON(http.StatusOK, gin.H{
 			//返回数据
 			"data": tranData,
 		})
 
-
 	}
 
 	//period = 1min自动缓存
-	historyData, err := logic.GetKlineHistoryDiy(symbol,"")
+	historyData, err := logic.GetKlineHistoryDiy(symbol, "")
 	//historyData, err := logic.GetKlineHistory(symbol)
 	if err != nil {
 		if err == redis.Nil {
 			err := logic.SetKlineHistory()
-			c.JSON(http.StatusOK,gin.H{
-				"msg" : "正在缓存数据,请2s后继续访问",
-
+			c.JSON(http.StatusOK, gin.H{
+				"msg": "正在缓存数据,请2s后继续访问",
 			})
 			fmt.Println(err)
 			return
@@ -383,18 +378,16 @@ func GetKlineHistoryController(c *gin.Context)  {
 		return
 	}
 	//返回数据
-	c.JSON(http.StatusOK,gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"data": historyData,
 	})
 }
 
-
-
 //1.启动一个websocket 客户端
 func GetRedisData3(c *gin.Context) {
 	market, err := huobiapi.NewMarket()
-	if err !=nil{
-		fmt.Printf("huobiapi.NewMarket() %v",err)
+	if err != nil {
+		fmt.Printf("huobiapi.NewMarket() %v", err)
 		return
 	}
 	//升级get请求为webSocket协议
@@ -413,18 +406,18 @@ func GetRedisData3(c *gin.Context) {
 		mt, message, err := wsConn.Conn.ReadMessage()
 		err = market.Subscribe(string(message), func(topic string, hjson *huobiapi.JSON) {
 			// 收到数据更新时回调,收到信息返回给前端
-			jsonData,_ := hjson.MarshalJSON()
+			jsonData, _ := hjson.MarshalJSON()
 			wsConn.Mux.Lock()
 			//3.写数据给
 			err = wsConn.Conn.WriteMessage(mt, jsonData)
-			if err != nil{
-				fmt.Printf("webSocket Write Data fail err%v",err)
+			if err != nil {
+				fmt.Printf("webSocket Write Data fail err%v", err)
 			}
 			wsConn.Mux.Unlock()
 			//fmt.Println(topic, hjson)
 		})
 		if err != nil {
-			fmt.Printf("market.Subscribe fail %v",err)
+			fmt.Printf("market.Subscribe fail %v", err)
 			return
 		}
 
@@ -465,4 +458,3 @@ func GetRedisData3(c *gin.Context) {
 	market.Loop()
 
 }
-

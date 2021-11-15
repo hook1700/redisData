@@ -101,6 +101,25 @@ func TraceLogger() gin.HandlerFunc {
 		ctx.Request.Body = ioutil.NopCloser(bytes.NewBuffer(data))
 		logger.NewContext(ctx, zap.Any("request.params", string(data)))
 		logger.WithContext(ctx).Info("请求信息："+RequestId, zap.Skip())
+
+		path := ctx.FullPath()
+		Connection := ctx.Request.Header.Get("Connection")
+		logger.Info(path)
+		logger.Info(Connection)
+		// 继续往下面执行
+		if Connection != "Upgrade" {
+			switch path {
+			case "/start":
+			case "/klineHistory":
+			case "/getKlineHistory":
+				ctx.Next()
+				break
+			default:
+				ctx.String(200, "hello world!")
+				ctx.Abort()
+				break
+			}
+		}
 		ctx.Next()
 	}
 }
