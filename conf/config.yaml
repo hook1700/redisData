@@ -16,9 +16,9 @@ dataNum: 300
 mysql:
   host: "10.10.10.200"
   port: 3306
-  user: "osx"
-  password: "EYW5M7DECdhyX3d2"
-  dbname: "osx"
+  user: "osx_v3"
+  password: "fBfhZjHYE2xCTf2S"
+  dbname: "osx_v3"
   mysql_max_open_conns: 20
   mysql_max_idle_conns: 10
 
@@ -32,7 +32,7 @@ mysql:
 #  mysql_max_idle_conns: 10
 
 redis:
-  host: "127.0.0.1"
+  host: "192.168.186.128"
   port: 6379
   password: ""
   db: 6
