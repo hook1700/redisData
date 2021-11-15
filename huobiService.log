@@ -1,0 +1,2 @@
+{"level":"ERROR","time":"2021-11-15T16:37:45.929+0800","caller":"redisData/main.go:40","msg":"init redis fail err","error":"dial tcp 192.168.186.128:6379: i/o timeout"}
+{"level":"ERROR","time":"2021-11-15T16:38:47.911+0800","caller":"redisData/main.go:40","msg":"init redis fail err","error":"dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it."}

@@ -208,6 +208,7 @@ func WsHandle(c *gin.Context) {
 					websocketData := utils.Strval(data)
 					wsConn.Mux.Lock()
 					err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
+					logger.Info(websocketData)
 					wsConn.Mux.Unlock()
 					if err != nil {
 						logger.Info(err)
@@ -270,6 +271,7 @@ func WsHandle(c *gin.Context) {
 							//返回数据给用户
 							wsConn.Mux.Lock()
 							err = wsConn.Conn.WriteMessage(mt, data)
+							logger.Info(data)
 							wsConn.Mux.Unlock()
 							//time.Sleep(2*time.Second)
 							if err != nil {
