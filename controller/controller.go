@@ -11,7 +11,6 @@ import (
 	"redisData/huobi"
 	"redisData/logic"
 	"redisData/model"
-	"redisData/pkg/logger"
 	"redisData/utils"
 	"strings"
 	"sync"
@@ -132,12 +131,7 @@ func GetRedisData4(c *gin.Context) {
 	//	fmt.Println(err)
 	//	return
 	//}
-	defer func(ws *websocket.Conn) {
-		err := ws.Close()
-		if err != nil {
-			fmt.Println(err)
-		}
-	}(ws) //返回前关闭
+	defer ws.Close() //返回前关闭
 	for {
 		//读取ws中的数据
 		mt, message, err := wsConn.Conn.ReadMessage()
@@ -150,7 +144,6 @@ func GetRedisData4(c *gin.Context) {
 		//拿到参数进行校验
 		//如果含有1min中直接请求redis
 		b := strings.Contains(string(message), "1min")
-		logger.Info("123456")
 		if b == true{
 			//直接查询redis
 			go func() {
@@ -160,14 +153,9 @@ func GetRedisData4(c *gin.Context) {
 					if err == redis.Nil {
 						err = wsConn.Conn.WriteMessage(mt, []byte("key不存在，准备开始缓存"))
 						if err != nil {
-							fmt.Println(err)
 							return
 						}
-						err := logic.StartSetKlineData()
-						if err != nil {
-							fmt.Println(err)
-							return
-						}
+						logic.StartSetKlineData()
 						time.Sleep(10 * time.Second)
 					}
 					websocketData := utils.Strval(data)
@@ -176,11 +164,7 @@ func GetRedisData4(c *gin.Context) {
 					wsConn.Mux.Unlock()
 					if err != nil {
 						fmt.Println(err)
-						err := ws.Close()
-						if err != nil {
-							fmt.Println(err)
-							return
-						}
+						ws.Close()
 						return
 					}
 					time.Sleep(time.Second * 2)
