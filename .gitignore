@@ -2,3 +2,4 @@
 tmp/
 conf/config.yaml
 logs/*.log
+logs/*.log.gz
