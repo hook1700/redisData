@@ -2,9 +2,9 @@ package huobi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/leizongmin/huobiapi"
-	"net/http"
 	"redisData/dao/mysql"
 	"redisData/dao/redis"
 	"redisData/pkg/logger"
@@ -54,19 +54,14 @@ func NewSubscribe() {
 	// 创建客户端实例
 	market, err := huobiapi.NewMarket()
 	if err != nil {
-		fmt.Println(err)
-		//err = market.ReConnect()
-		http.Get("localhost:8887/start")
-		if err != nil {
-			fmt.Println(err)
-			panic(err)
-		}
+		logger.Error(err)
+		return
 	}
 	// 订阅主题
 	//使用循环一次订阅16条信息
-	allSymbol, err := mysql.GetAllSymbol()
-	if err != nil {
-		fmt.Println(err)
+	allSymbol, GetAllSymbolErr := mysql.GetAllSymbol()
+	if GetAllSymbolErr != nil {
+		logger.Error(GetAllSymbolErr)
 		return
 	}
 	for _, value := range *allSymbol {
@@ -81,13 +76,14 @@ func NewSubscribe() {
 			jsonData, _ := hjson.MarshalJSON()
 			//mapData := utils.JSONToMap(string(jsonData))
 			subData := &SubData{}
-			if err := json.Unmarshal(jsonData, subData); err != nil {
-				fmt.Printf("json.Unmarshal subData fail err:%v", err)
+			if UnmarshalErr := json.Unmarshal(jsonData, subData); err != nil {
+				logger.Error(errors.New(fmt.Sprintf("json.Unmarshal subData fail err:%v", UnmarshalErr)))
+
 			}
 			//通过数据库得到 自有币位数
-			decimalscale, err := mysql.GetDecimalScaleBySymbols(value.Name)
-			if err != nil {
-				fmt.Printf("mysql.GetDecimalScaleBySymbols fail err:%v", err)
+			decimalscale, GetDecimalScaleBySymbolsErr := mysql.GetDecimalScaleBySymbols(value.Name)
+			if GetDecimalScaleBySymbolsErr != nil {
+				logger.Error(errors.New(fmt.Sprintf("mysql.GetDecimalScaleBySymbols fail err:%v", GetDecimalScaleBySymbolsErr)))
 				return
 			}
 			logger.Info("自有币数开始处理")
@@ -118,9 +114,9 @@ func NewSubscribe() {
 			//取出ch当key
 			ch := subData.Ch
 			//把修改后的对象反序列化，存进redis
-			redisData, err := json.Marshal(subData)
-			if err != nil {
-				fmt.Printf("json.Marshal(subData) fail err:%v", err)
+			redisData, MarshalErr := json.Marshal(subData)
+			if MarshalErr != nil {
+				logger.Error(errors.New(fmt.Sprintf("json.Marshal(subData) fail err:%v", MarshalErr)))
 			}
 			//根据推送返回的数据，以字符串的形式存入reids
 			//redis.CreateOrChangeKline(topic, string(redisData))
@@ -144,8 +140,8 @@ func NewQuotation() {
 		fmt.Println(err)
 		//err = market.ReConnect()
 		if err != nil {
-			fmt.Println(err)
-			panic(err)
+			logger.Error(err)
+			return
 		}
 	}
 	//订阅行情信息
@@ -158,25 +154,26 @@ func NewQuotation() {
 		return
 	}
 	for _, value := range *allSymbol {
-		market.Subscribe(fmt.Sprintf("market.%s.depth.step1", value.Name), func(topic string, hjson *huobiapi.JSON) {
+		SubscribeErr := market.Subscribe(fmt.Sprintf("market.%s.depth.step1", value.Name), func(topic string, hjson *huobiapi.JSON) {
 			// 收到数据更新时回调
 			//fmt.Println(topic, hjson)
 			jsonData, _ := hjson.MarshalJSON()
 			//println(string(jsonData))
 
 			data := new(Quotation)
-			err := json.Unmarshal(jsonData, data)
-			if err != nil {
-				fmt.Println(err)
+			UnmarshalErr := json.Unmarshal(jsonData, data)
+			if UnmarshalErr != nil {
+				logger.Error(UnmarshalErr)
 				return
 			}
 			//redis.CreateRedisData(fmt.Sprintf("\"%s\"", topic), string(jsonData))
 			//fmt.Printf("%#v", data.Ticks.Bids[1][0])
 			//根据自由币变量修改
 			//通过数据库得到 自有币位数
-			decimalscale, err := mysql.GetDecimalScaleBySymbols(value.Name)
-			if err != nil {
-				fmt.Printf("mysql.GetDecimalScaleBySymbols fail err:%v", err)
+			decimalscale, GetDecimalScaleBySymbolsErr := mysql.GetDecimalScaleBySymbols(value.Name)
+			if GetDecimalScaleBySymbolsErr != nil {
+				logger.Error(errors.New(fmt.Sprintf("mysql.GetDecimalScaleBySymbols fail err:%v", GetDecimalScaleBySymbolsErr)))
+
 				return
 			}
 			//对数据和自有币位数进行运算，返回修改后的数据
@@ -208,6 +205,10 @@ func NewQuotation() {
 			redis.CreateRedisData(fmt.Sprintf("\"%s\"", ch), string(jsonData))
 
 		})
+		if SubscribeErr != nil {
+			logger.Error(SubscribeErr)
+			return
+		}
 	}
 	market.Loop()
 }
@@ -216,12 +217,11 @@ func NewSubscribeParam(symbol string, period string) {
 	// 创建客户端实例
 	market, err := huobiapi.NewMarket()
 	if err != nil {
-		fmt.Println(err)
+		logger.Error(err)
 		err = market.ReConnect()
-		http.Get("localhost:8887/start")
 		if err != nil {
-			fmt.Println(err)
-			panic(err)
+			logger.Error(err)
+			return
 		}
 	}
 	// 订阅主题
@@ -232,7 +232,7 @@ func NewSubscribeParam(symbol string, period string) {
 	//	return
 	//}
 
-	market.Subscribe(fmt.Sprintf("market.%s.kline.%s", symbol, period), func(topic string, hjson *huobiapi.JSON) {
+	SubscribeErr := market.Subscribe(fmt.Sprintf("market.%s.kline.%s", symbol, period), func(topic string, hjson *huobiapi.JSON) {
 		// 收到数据更新时回调
 		//fmt.Println(topic, json)
 
@@ -283,6 +283,10 @@ func NewSubscribeParam(symbol string, period string) {
 		//fmt.Println(string(redisData))
 
 	})
+	if SubscribeErr != nil {
+		logger.Error(SubscribeErr)
+		return
+	}
 
 	market.Loop()
 }

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	uuid "github.com/satori/go.uuid"
 	"io/ioutil"
+	"redisData/pkg/logger"
 	"strconv"
 	"strings"
 	"time"
@@ -110,7 +111,7 @@ func JSONToMap(str string) map[string]interface{} {
 	err := json.Unmarshal([]byte(str), &tempMap)
 
 	if err != nil {
-		panic(err)
+		logger.Error(err)
 	}
 
 	return tempMap
