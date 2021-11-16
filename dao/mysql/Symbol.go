@@ -1,26 +1,25 @@
 package mysql
 
 import (
-	"fmt"
 	"redisData/model"
+	"redisData/pkg/logger"
+	"redisData/pkg/mysql"
 )
 
-func GetAllSymbol() (ss []model.Symbol, err error) {
-	sql := `select k_line_code from osx_currency`
-	if err = db.Select(&ss, sql); err != nil {
-		fmt.Errorf("查询数据失败")
-		return nil, err
+func GetAllSymbol(ss *[]model.Symbol) error {
+	sql := "select k_line_code as name from osx_currency"
+	if err := mysql.DB.Debug().Raw(sql).Scan(&ss).Error; err != nil {
+		logger.Error(err)
+		return err
 	}
-	//fmt.Printf("ss is %v", *ss)
-	return
+	return nil
 }
 
-func GetDecimalScaleBySymbols(symbol string) (*model.DecimalScale, error) {
-	var d model.DecimalScale
-	sql := `select decimal_scale from osx_currency where k_line_code = ?`
-	if err := db.Get(&d, sql, symbol); err != nil {
-		fmt.Printf("get failed, err:%v\n", err)
-		return nil, err
+func GetDecimalScaleBySymbols(symbol string, data *model.DecimalScale) error {
+	sql := "select decimal_scale as value from osx_currency where k_line_code = ?"
+	if err := mysql.DB.Debug().Raw(sql, symbol).Scan(&data).Error; err != nil {
+		logger.Error(err)
+		return err
 	}
-	return &d, nil
+	return nil
 }

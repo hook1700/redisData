@@ -1,31 +1,20 @@
 package mysql
 
 import (
-	"fmt"
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/jmoiron/sqlx"
 	"github.com/spf13/viper"
+	"redisData/pkg/mysql"
+	"time"
 )
 
-var db *sqlx.DB
-
-func InitMysql() (err error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True",
-		viper.GetString("mysql.user"),
-		viper.GetString("mysql.password"),
-		viper.GetString("mysql.host"),
-		viper.GetInt("mysql.port"),
-		viper.GetString("mysql.dbname"))
-	// 也可以使用MustConnect连接不成功就panic
-	db, err = sqlx.Connect("mysql", dsn)
-	if err != nil {
-		return
-	}
-	db.SetMaxOpenConns(viper.GetInt("mysql_max_open_conns"))
-	db.SetMaxIdleConns(viper.GetInt("mysql_max_idle_conns"))
-	return
-}
-
-func Close() {
-	_ = db.Close()
+func InitMysql() {
+	// 建立数据库连接池
+	db := mysql.ConnectDB()
+	// 命令行打印数据库请求的信息
+	sqlDB, _ := db.DB()
+	// 设置最大连接数
+	sqlDB.SetMaxOpenConns(viper.GetInt("mysql.max_open_connections"))
+	// 设置最大空闲连接数
+	sqlDB.SetMaxIdleConns(viper.GetInt("mysql.max_idle_connections"))
+	// 设置每个链接的过期时间
+	sqlDB.SetConnMaxLifetime(time.Duration(viper.GetInt("mysql.max_life_seconds")) * time.Second)
 }

@@ -63,8 +63,9 @@ func NewSubscribe() {
 	}
 	// 订阅主题
 	//使用循环一次订阅16条信息
-	allSymbol, GetAllSymbolErr := mysql.GetAllSymbol()
-	if GetAllSymbolErr != nil {
+	var allSymbol []model.Symbol
+	GetAllSymbolErr := mysql.GetAllSymbol(&allSymbol)
+	if err != nil {
 		logger.Error(GetAllSymbolErr)
 		return
 	}
@@ -102,7 +103,8 @@ func marketSubscribe(markSer *market.Market, key int, value model.Symbol) {
 
 		}
 		//通过数据库得到 自有币位数
-		decimalscale, GetDecimalScaleBySymbolsErr := mysql.GetDecimalScaleBySymbols(value.Name)
+		var decimalscale model.DecimalScale
+		GetDecimalScaleBySymbolsErr := mysql.GetDecimalScaleBySymbols(value.Name, &decimalscale)
 		if GetDecimalScaleBySymbolsErr != nil {
 			logger.Error(errors.New(fmt.Sprintf("mysql.GetDecimalScaleBySymbols fail err:%v", GetDecimalScaleBySymbolsErr)))
 			return
@@ -172,9 +174,11 @@ func NewQuotation() {
 	//"market.btcusdt.depth.step0"
 	// 订阅主题
 	//使用循环一次订阅16条信息
-	allSymbol, err := mysql.GetAllSymbol()
-	if err != nil {
-		fmt.Println(err)
+
+	var allSymbol []model.Symbol
+	GetAllSymbolErr := mysql.GetAllSymbol(&allSymbol)
+	if GetAllSymbolErr != nil {
+		logger.Error(GetAllSymbolErr)
 		return
 	}
 	for _, value := range allSymbol {
@@ -194,10 +198,10 @@ func NewQuotation() {
 			//fmt.Printf("%#v", data.Ticks.Bids[1][0])
 			//根据自由币变量修改
 			//通过数据库得到 自有币位数
-			decimalscale, GetDecimalScaleBySymbolsErr := mysql.GetDecimalScaleBySymbols(value.Name)
+			var decimalscale model.DecimalScale
+			GetDecimalScaleBySymbolsErr := mysql.GetDecimalScaleBySymbols(value.Name, &decimalscale)
 			if GetDecimalScaleBySymbolsErr != nil {
 				logger.Error(errors.New(fmt.Sprintf("mysql.GetDecimalScaleBySymbols fail err:%v", GetDecimalScaleBySymbolsErr)))
-
 				return
 			}
 			//对数据和自有币位数进行运算，返回修改后的数据
@@ -271,9 +275,10 @@ func NewSubscribeParam(symbol string, period string) {
 			fmt.Printf("json.Unmarshal subData fail err:%v", err)
 		}
 		//通过数据库得到 自有币位数
-		decimalscale, err := mysql.GetDecimalScaleBySymbols(symbol)
-		if err != nil {
-			fmt.Printf("mysql.GetDecimalScaleBySymbols fail err:%v", err)
+		var decimalscale model.DecimalScale
+		GetDecimalScaleBySymbolsErr := mysql.GetDecimalScaleBySymbols(symbol, &decimalscale)
+		if GetDecimalScaleBySymbolsErr != nil {
+			logger.Error(errors.New(fmt.Sprintf("mysql.GetDecimalScaleBySymbols fail err:%v", GetDecimalScaleBySymbolsErr)))
 			return
 		}
 		//对数据和自有币位数进行运算，返回修改后的数据

@@ -29,11 +29,7 @@ func main() {
 	zap.L().Debug("init logger success")
 
 	//初始化MySQL
-	if err := mysql.InitMysql(); err != nil {
-		zap.L().Error("init mysql fail err", zap.Error(err))
-		return
-	}
-	defer mysql.Close()
+	mysql.InitMysql()
 
 	//初始化redis
 	if err := redis.InitClient(); err != nil {
@@ -42,14 +38,13 @@ func main() {
 	}
 	defer redis.Close()
 
-
 	//初始化数据 开始存redis数据
 	logic.InitStartData()
 
 	fmt.Println("success")
 	//初始化routes
 	r := routes.SetUp()
-	r.Run(fmt.Sprintf(":%d",viper.GetInt("port")))
+	r.Run(fmt.Sprintf(":%d", viper.GetInt("port")))
 
 	//宕机处理
 	defer func() {

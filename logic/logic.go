@@ -12,6 +12,7 @@ import (
 	"redisData/dao/redis"
 	"redisData/huobi"
 	"redisData/model"
+	"redisData/pkg/logger"
 	"redisData/pkg/translate"
 	"redisData/utils"
 	"strings"
@@ -105,10 +106,11 @@ func CheckDataType(str string) (dataType int, str2 string) {
 func SetKlineHistory() error {
 
 	//通过访问mysql获取切片
-	symbol, err := mysql.GetAllSymbol()
-	if err != nil {
-		fmt.Printf("mysql.GetAllSymbol fail %v", err)
-		return err
+	var symbol []model.Symbol
+	GetAllSymbolErr := mysql.GetAllSymbol(&symbol)
+	if GetAllSymbolErr != nil {
+		logger.Error(GetAllSymbolErr)
+		return GetAllSymbolErr
 	}
 	ss := make([]string, 0, len(symbol))
 	for _, value := range symbol {
@@ -231,9 +233,10 @@ func RequestHuobiKilne(symbol string, period string) ([]byte, error) {
 // TranDecimalScale 封装自由币换算
 func TranDecimalScale(symbol string, data model.KlineData) *model.KlineData {
 	//通过数据库得到 自有币位数
-	decimalscale, err := mysql.GetDecimalScaleBySymbols(symbol)
-	if err != nil {
-		fmt.Printf("mysql.GetDecimalScaleBySymbols fail err:%v", err)
+	var decimalscale model.DecimalScale
+	GetDecimalScaleBySymbolsErr := mysql.GetDecimalScaleBySymbols(symbol, &decimalscale)
+	if GetDecimalScaleBySymbolsErr != nil {
+		logger.Error(errors.New(fmt.Sprintf("mysql.GetDecimalScaleBySymbols fail err:%v", GetDecimalScaleBySymbolsErr)))
 		return nil
 	}
 	//对数据和自有币位数进行运算，返回修改后的数据
@@ -278,9 +281,10 @@ func TranDecimalScale2(sub string, subData huobi.SubData) *huobi.SubData {
 	fmt.Println(res[1])
 	//去双引号
 	//通过数据库得到 自有币位数
-	decimalscale, err := mysql.GetDecimalScaleBySymbols(res[1])
-	if err != nil {
-		fmt.Printf("mysql.GetDecimalScaleBySymbols fail err:%v", err)
+	var decimalscale model.DecimalScale
+	GetDecimalScaleBySymbolsErr := mysql.GetDecimalScaleBySymbols(res[1], &decimalscale)
+	if GetDecimalScaleBySymbolsErr != nil {
+		logger.Error(errors.New(fmt.Sprintf("mysql.GetDecimalScaleBySymbols fail err:%v", GetDecimalScaleBySymbolsErr)))
 		return nil
 	}
 	//对数据和自有币位数进行运算，返回修改后的数据
