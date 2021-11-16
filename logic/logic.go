@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"go.uber.org/zap"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"redisData/dao/mysql"
 	"redisData/dao/redis"
@@ -126,7 +125,8 @@ func SetKlineHistory() error {
 				url := fmt.Sprintf("https://api.huobi.pro/market/history/kline?period=1min&size=300&symbol=%s", ss[i])
 				response, err := http.Get(url)
 				if err != nil {
-					log.Fatalf("get api fail err is %v", err)
+					//log.Fatalf("get api fail err is %v", err)
+					logger.Error(err)
 					return
 				}
 				body, _ := ioutil.ReadAll(response.Body)
