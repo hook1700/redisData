@@ -110,8 +110,8 @@ func SetKlineHistory() error {
 		fmt.Printf("mysql.GetAllSymbol fail %v", err)
 		return err
 	}
-	ss := make([]string, 0, len(*symbol))
-	for _, value := range *symbol {
+	ss := make([]string, 0, len(symbol))
+	for _, value := range symbol {
 		ss = append(ss, value.Name)
 	}
 	//fmt.Printf("ss is %v", ss)
