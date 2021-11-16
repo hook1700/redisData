@@ -287,17 +287,19 @@ func QuotationController(c *gin.Context) {
 					time.Sleep(10 * time.Second)
 				}
 				websocketData := utils.Strval(data)
-				wsConn.Mux.Lock()
-				WriteMessageErr := wsConn.Conn.WriteMessage(mt, []byte(websocketData))
-				wsConn.Mux.Unlock()
-				if WriteMessageErr != nil {
-					logger.Error(WriteMessageErr)
-					CloseErr := ws.Close()
-					if CloseErr != nil {
-						logger.Error(CloseErr)
+				if len(websocketData) > 0 {
+					wsConn.Mux.Lock()
+					WriteMessageErr := wsConn.Conn.WriteMessage(mt, []byte(websocketData))
+					wsConn.Mux.Unlock()
+					if WriteMessageErr != nil {
+						logger.Error(WriteMessageErr)
+						CloseErr := ws.Close()
+						if CloseErr != nil {
+							logger.Error(CloseErr)
+							return
+						}
 						return
 					}
-					return
 				}
 				time.Sleep(time.Second * 2)
 			}
