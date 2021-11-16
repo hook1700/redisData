@@ -372,6 +372,7 @@ func GetKlineHistoryController(c *gin.Context) {
 			//返回数据
 			"data": tranData,
 		})
+		return
 
 	}
 
@@ -396,6 +397,7 @@ func GetKlineHistoryController(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"data": historyData,
 	})
+	return
 }
 
 //1.启动一个websocket 客户端
