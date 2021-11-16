@@ -14,7 +14,7 @@ func SetUp() *gin.Engine {
 	//请求的 url https://api.huobi.pro/market/history/kline?period=1min&size=1&symbol=btcusdt
 	//websocket
 	r.GET("/getRedisData", controller.GetRedisData) //
-	//r.GET("/quotation", controller.QuotationController)
+	r.GET("/quotation", controller.QuotationController)
 	//r.GET("/ws", controller.GetRedisData2)
 	//r.GET("/websocketData", controller.GetRedisData3)
 	//r.GET("/test", controller.GetRedisData4)

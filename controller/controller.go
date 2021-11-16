@@ -246,17 +246,27 @@ func GetRedisData4(c *gin.Context) {
 // QuotationController 请求行情数据接口
 func QuotationController(c *gin.Context) {
 	//升级get请求为webSocket协议
-	ws, err := upGrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		fmt.Println(err)
+	ws, wsErr := upGrader.Upgrade(c.Writer, c.Request, nil)
+	if wsErr != nil {
+		logger.Error(wsErr)
 		return
 	}
-	defer ws.Close() //返回前关闭
+	wsConn := &WsConn{
+		ws,
+		sync.RWMutex{},
+	}
+	defer func(ws *websocket.Conn) {
+		err := ws.Close()
+		if err != nil {
+			logger.Error(err)
+		}
+	}(ws)
 	for {
 		//读取ws中的数据，数据是"market.btcusdt.depth.step1"类型
-		mt, message, err := ws.ReadMessage()
-		if err != nil {
-			break
+		mt, message, messageErr := wsConn.Conn.ReadMessage()
+		if messageErr != nil {
+			logger.Error(messageErr)
+			return
 		}
 		strMsg := string(message)
 		//打印请求参数
@@ -269,15 +279,27 @@ func QuotationController(c *gin.Context) {
 				data, err := logic.GetDataByKey(strMsg)
 				//修改，当拿不到key重新订阅，10秒订阅一次
 				if err == redis.Nil {
-					logic.StartSetQuotation()
+					StartSetQuotationErr := logic.StartSetQuotation()
+					if StartSetQuotationErr != nil {
+						logger.Error(StartSetQuotationErr)
+						return
+					}
 					time.Sleep(10 * time.Second)
 				}
 				websocketData := utils.Strval(data)
-				err = ws.WriteMessage(mt, []byte(websocketData))
-				if err != nil {
+				wsConn.Mux.Lock()
+				WriteMessageErr := wsConn.Conn.WriteMessage(mt, []byte(websocketData))
+				wsConn.Mux.Unlock()
+				if WriteMessageErr != nil {
+					logger.Error(WriteMessageErr)
+					CloseErr := ws.Close()
+					if CloseErr != nil {
+						logger.Error(CloseErr)
+						return
+					}
 					return
 				}
-				time.Sleep(time.Second * 1)
+				time.Sleep(time.Second * 2)
 			}
 		}()
 	}
