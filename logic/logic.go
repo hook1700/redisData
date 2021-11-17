@@ -240,26 +240,28 @@ func TranDecimalScale(symbol string, data model.KlineData) *model.KlineData {
 		return nil
 	}
 	//对数据和自有币位数进行运算，返回修改后的数据
-
+	var multiple float64 // 浮动倍数
 	for i := 0; i < len(data.Data); i++ {
 		if decimalscale.Value > 0 {
-			data.Data[i].Amount = data.Data[i].Amount * float64(decimalscale.Value) * 0.01
-			data.Data[i].Open = data.Data[i].Open * float64(decimalscale.Value) * 0.01
-			data.Data[i].Close = data.Data[i].Close * float64(decimalscale.Value) * 0.01
-			data.Data[i].Low = data.Data[i].Low * float64(decimalscale.Value) * 0.01
-			data.Data[i].High = data.Data[i].High * float64(decimalscale.Value) * 0.01
-			data.Data[i].Vol = data.Data[i].Vol * float64(decimalscale.Value) * 0.01
+			multiple = float64(decimalscale.Value) + 100
+			logger.Info("自由比位数大于零")
+			data.Data[i].Amount =translate.Decimal(data.Data[i].Amount * multiple * 0.01)
+			data.Data[i].Open = translate.Decimal(data.Data[i].Open * multiple * 0.01)
+			data.Data[i].Close = translate.Decimal(data.Data[i].Close * multiple * 0.01)
+			data.Data[i].Low = translate.Decimal(data.Data[i].Low * multiple * 0.01)
+			data.Data[i].High = translate.Decimal(data.Data[i].High * multiple * 0.01)
+			data.Data[i].Vol = translate.Decimal(data.Data[i].Vol * multiple * 0.01)
 		}
 		if decimalscale.Value < 0 {
-			decimalscale.Value = decimalscale.Value * -1
-			data.Data[i].Amount = data.Data[i].Amount / float64(decimalscale.Value) * 0.01
-			data.Data[i].Open = data.Data[i].Open / float64(decimalscale.Value) * 0.01
-			data.Data[i].Close = data.Data[i].Close / float64(decimalscale.Value) * 0.01
-			data.Data[i].Low = data.Data[i].Low / float64(decimalscale.Value) * 0.01
-			data.Data[i].High = data.Data[i].High / float64(decimalscale.Value) * 0.01
-			data.Data[i].Vol = data.Data[i].Vol / float64(decimalscale.Value) * 0.01
+			multiple = float64(decimalscale.Value) + 100
+			logger.Info("自由比位数xiao于零")
+			data.Data[i].Amount =translate.Decimal(data.Data[i].Amount * multiple * 0.01)
+			data.Data[i].Open = translate.Decimal(data.Data[i].Open * multiple * 0.01)
+			data.Data[i].Close = translate.Decimal(data.Data[i].Close * multiple * 0.01)
+			data.Data[i].Low = translate.Decimal(data.Data[i].Low * multiple * 0.01)
+			data.Data[i].High = translate.Decimal(data.Data[i].High * multiple * 0.01)
+			data.Data[i].Vol = translate.Decimal(data.Data[i].Vol * multiple * 0.01)
 		}
-
 		//序列化内部数据
 		//json.Marshal(&data.Data)
 		//if err != nil {
@@ -268,11 +270,10 @@ func TranDecimalScale(symbol string, data model.KlineData) *model.KlineData {
 		//}
 
 	}
-
 	return &data
 }
 
-// TranDecimalScale2 封装自由币换算,修改下参数,从symbol改成sub
+// TranDecimalScale2 封装自由币换算,修改下参数,从symbol改成sub, 这个方法是订阅5分钟数据时调用
 func TranDecimalScale2(sub string, subData huobi.SubData) *huobi.SubData {
 	//字符串切割 去双引号
 	sub = string([]byte(sub)[1 : len(sub)-1])
@@ -288,37 +289,41 @@ func TranDecimalScale2(sub string, subData huobi.SubData) *huobi.SubData {
 		return nil
 	}
 	//对数据和自有币位数进行运算，返回修改后的数据
-
+	var multiple float64 // 浮动倍数
 	//for i := 0;i < len(data.Data);i++{
 	if decimalscale.Value > 0 {
-		//data.Data[i].Amount = data.Data[i].Amount * float64(decimalscale.Value) * 0.01
-		//data.Data[i].Open = data.Data[i].Open * float64(decimalscale.Value) * 0.01
-		//data.Data[i].Close = data.Data[i].Close * float64(decimalscale.Value) * 0.01
-		//data.Data[i].Low = data.Data[i].Low * float64(decimalscale.Value) * 0.01
-		//data.Data[i].High = data.Data[i].High * float64(decimalscale.Value) * 0.01
-		//data.Data[i].Vol = data.Data[i].Vol * float64(decimalscale.Value) * 0.01
-		subData.Amount = translate.Decimal(subData.Amount * float64(decimalscale.Value) * 0.01)
-		subData.Open = translate.Decimal(subData.Open * float64(decimalscale.Value) * 0.01)
-		subData.Close = translate.Decimal(subData.Close * float64(decimalscale.Value) * 0.01)
-		subData.Low = translate.Decimal(subData.Low * float64(decimalscale.Value) * 0.01)
-		subData.High = translate.Decimal(subData.High * float64(decimalscale.Value) * 0.01)
-		subData.Vol = translate.Decimal(subData.Vol * float64(decimalscale.Value) * 0.01)
+
+		multiple = float64(decimalscale.Value) + 100
+		logger.Info("自由比位数大于零")
+		subData.Amount = translate.Decimal(subData.Amount * multiple * 0.01)
+		subData.Open = translate.Decimal(subData.Open * multiple * 0.01)
+		subData.Close = translate.Decimal(subData.Close * multiple * 0.01)
+		subData.Low = translate.Decimal(subData.Low * multiple * 0.01)
+		subData.High = translate.Decimal(subData.High * multiple * 0.01)
+		subData.Vol = translate.Decimal(subData.Vol * multiple * 0.01)
+		//subData.Amount = translate.Decimal(subData.Amount * float64(decimalscale.Value) * 0.01)
+		//subData.Open = translate.Decimal(subData.Open * float64(decimalscale.Value) * 0.01)
+		//subData.Close = translate.Decimal(subData.Close * float64(decimalscale.Value) * 0.01)
+		//subData.Low = translate.Decimal(subData.Low * float64(decimalscale.Value) * 0.01)
+		//subData.High = translate.Decimal(subData.High * float64(decimalscale.Value) * 0.01)
+		//subData.Vol = translate.Decimal(subData.Vol * float64(decimalscale.Value) * 0.01)
 	}
 	if decimalscale.Value < 0 {
-		decimalscale.Value = decimalscale.Value * -1
-		//data.Data[i].Amount = data.Data[i].Amount / float64(decimalscale.Value) * 0.01
-		//data.Data[i].Open = data.Data[i].Open / float64(decimalscale.Value) * 0.01
-		//data.Data[i].Close = data.Data[i].Close / float64(decimalscale.Value) * 0.01
-		//data.Data[i].Low = data.Data[i].Low / float64(decimalscale.Value) * 0.01
-		//data.Data[i].High = data.Data[i].High / float64(decimalscale.Value) * 0.01
-		//data.Data[i].Vol = data.Data[i].Vol / float64(decimalscale.Value) * 0.01
-		decimalscale.Value = decimalscale.Value * -1
-		subData.Amount = translate.Decimal(subData.Amount / float64(decimalscale.Value) * 0.01)
-		subData.Open = translate.Decimal(subData.Open / float64(decimalscale.Value) * 0.01)
-		subData.Close = translate.Decimal(subData.Close / float64(decimalscale.Value) * 0.01)
-		subData.Low = translate.Decimal(subData.Low / float64(decimalscale.Value) * 0.01)
-		subData.High = translate.Decimal(subData.High / float64(decimalscale.Value) * 0.01)
-		subData.Vol = translate.Decimal(subData.Vol / float64(decimalscale.Value) * 0.01)
+		multiple = float64(decimalscale.Value) + 100
+		logger.Info("自由比位数大于零")
+		subData.Amount = translate.Decimal(subData.Amount * multiple * 0.01)
+		subData.Open = translate.Decimal(subData.Open * multiple * 0.01)
+		subData.Close = translate.Decimal(subData.Close * multiple * 0.01)
+		subData.Low = translate.Decimal(subData.Low * multiple * 0.01)
+		subData.High = translate.Decimal(subData.High * multiple * 0.01)
+		subData.Vol = translate.Decimal(subData.Vol * multiple * 0.01)
+		//decimalscale.Value = decimalscale.Value * -1
+		//subData.Amount = translate.Decimal(subData.Amount / float64(decimalscale.Value) * 0.01)
+		//subData.Open = translate.Decimal(subData.Open / float64(decimalscale.Value) * 0.01)
+		//subData.Close = translate.Decimal(subData.Close / float64(decimalscale.Value) * 0.01)
+		//subData.Low = translate.Decimal(subData.Low / float64(decimalscale.Value) * 0.01)
+		//subData.High = translate.Decimal(subData.High / float64(decimalscale.Value) * 0.01)
+		//subData.Vol = translate.Decimal(subData.Vol / float64(decimalscale.Value) * 0.01)
 	}
 
 	//序列化内部数据

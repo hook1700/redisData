@@ -341,7 +341,7 @@ func GetKlineHistoryController(c *gin.Context) {
 		})
 		return
 	}
-	if symbol == "" {
+	if period == "" {
 		c.JSON(http.StatusOK, gin.H{
 			"msg": "period param is require",
 		})

@@ -272,6 +272,7 @@ func QuotationSubscribe(markServer *market.Market, key int, value model.Symbol) 
 	}
 }
 
+// 此方法废弃 不用修改
 func NewSubscribeParam(symbol string, period string) {
 	// 创建客户端实例
 	marketNewSubscribeParam, err := huobiapi.NewMarket()
