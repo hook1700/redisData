@@ -273,16 +273,13 @@ func GetKlineHistoryController(c *gin.Context) {
 	if err != nil {
 		if err == redis.Nil {
 			err := logic.SetKlineHistory()
-			c.JSON(http.StatusOK, gin.H{
-				"msg": "正在缓存数据,请2s后继续访问",
-			})
+			//c.JSON(http.StatusOK, gin.H{
+			//	"msg": "正在缓存数据,请2s后继续访问",
+			//})
 			fmt.Println(err)
-			return
-
 			time.Sleep(10 * time.Second)
 		}
 		fmt.Println(err)
-		return
 	}
 	//返回数据
 	c.JSON(http.StatusOK, gin.H{
