@@ -278,8 +278,10 @@ func GetKlineHistoryController(c *gin.Context) {
 			//})
 			fmt.Println(err)
 			time.Sleep(10 * time.Second)
+			return
 		}
 		fmt.Println(err)
+		return
 	}
 	//返回数据
 	c.JSON(http.StatusOK, gin.H{

@@ -239,7 +239,7 @@ func WsHandle(c *gin.Context) {
 							//logger.Info("订阅成功")
 							//120后自动取消订阅
 							go func() {
-								time.Sleep(1 * time.Minute)
+								time.Sleep(60 * time.Minute)
 								//logger.Info("取消订阅成功")
 								market.Unsubscribe(newMsg)
 								//market.ReceiveTimeout
