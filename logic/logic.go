@@ -14,7 +14,6 @@ import (
 	"redisData/pkg/logger"
 	"redisData/pkg/translate"
 	"redisData/utils"
-	"strings"
 	"time"
 )
 
@@ -24,43 +23,14 @@ var (
 
 // StartSetKlineData main.go时，默认缓存16种symbol,1min的数据
 func StartSetKlineData() error {
-	//通过访问mysql获取切片
-	//symbol, err := mysql.GetAllSymbol()
-	//if err != nil {
-	//	fmt.Printf("mysql.GetAllSymbol fail %v", err)
-	//	return err
-	//}
-	//ss := make([]string, 0, len(*symbol))
-	//for _, value := range *symbol {
-	//	ss = append(ss, value.Name)
-	//}
-	//根据symbol切片长度起goroutine
-	//1.遍历mysql中的symbol,NewSubscribe中有存入redis的方法
-	//for i := 0; i < len(ss); i++ {
-	//	go huobi.NewSubscribe(ss[i])
-	//}
-	//return nil
+
 	go huobi.NewSubscribe()
 	return nil
 }
 
 // StartSetQuotation 自动获取行情数据
 func StartSetQuotation() error {
-	//通过访问mysql获取切片
-	//symbol, err := mysql.GetAllSymbol()
-	//if err != nil {
-	//	fmt.Printf("mysql.GetAllSymbol fail %v", err)
-	//	return err
-	//}
-	//ss := make([]string, 0, len(*symbol))
-	//for _, value := range *symbol {
-	//	ss = append(ss, value.Name)
-	//}
-	//根据symbol切片长度起goroutine
-	//1.遍历mysql中的symbol,NewQuotation中有存入redis的数据中
-	//for i := 0; i < len(ss); i++ {
-	//	go huobi.NewQuotation(ss[i])
-	//}
+
 	go huobi.NewQuotation()
 	return nil
 }
@@ -85,21 +55,8 @@ func GetDataByKey(key string) (interface{}, error) {
 	return i, nil
 }
 
-//CheckDataType 区分ping请求和订阅请求
-func CheckDataType(str string) (dataType int, str2 string) {
-	if strings.Contains(str, "ping") {
-		rest := utils.Split(str, ":")
-		str2 = rest[1]
-		return 1, str2
-	}
-	if strings.Contains(str, "pong") {
-		return 2, "success"
-	}
-	if strings.Contains(str, "kline") {
-		return 3, str
-	}
-	return 0, "other"
-}
+
+
 
 // SetKlineHistory 开始缓存k线图的历史数据
 func SetKlineHistory() error {
@@ -155,20 +112,6 @@ func SetKlineHistory() error {
 
 	}()
 
-	//for _, v := range ss {
-	//	url := fmt.Sprintf("https://api.huobi.pro/market/history/kline?period=1min&size=1&symbol=%s", v)
-	//	response, err := http.Get(url)
-	//	if err != nil {
-	//		log.Fatalf("get api fail err is %v", err)
-	//		return err
-	//	}
-	//	body, _ := ioutil.ReadAll(response.Body)
-	//	data := string(body)
-	//
-	//	//把数据写进redis
-	//	redis.CreateOrChangeKline(v, data)
-	//	return nil
-	//}
 	return nil
 
 }
@@ -178,24 +121,6 @@ func CreateHistoryKline(key string, i interface{}) {
 	redis.CreateHistoryKline(key, i)
 }
 
-// GetKlineHistory 通过key获取历史300条k线图数据
-func GetKlineHistory(key string) (interface{}, error) {
-
-	//根据key获取值"market.btcusdt.kline.5min"
-	klineHistoryData, err := redis.GetKlineHistory(fmt.Sprintf("\"market.%s.kline.1min\"", key))
-	if err != nil {
-		return nil, err
-	}
-	//将对应key中的value值，将string转化成json后返回
-	data := []byte(klineHistoryData)
-	var i interface{}
-	//3.解析
-	if err := json.Unmarshal(data, &i); err != nil {
-		fmt.Println(err)
-		return nil, ErrorUnmarshalFail
-	}
-	return i, nil
-}
 
 //GetKlineHistory 获取300条k线数据，增加时间参数
 func GetKlineHistoryDiy(symbol string, period string) (interface{}, error) {
@@ -326,14 +251,7 @@ func TranDecimalScale2(sub string, subData huobi.SubData) *huobi.SubData {
 		//subData.Vol = translate.Decimal(subData.Vol / float64(decimalscale.Value) * 0.01)
 	}
 
-	//序列化内部数据
-	//json.Marshal(&data.Data)
-	//if err != nil {
-	//	fmt.Println("是不是内部除了问题")
-	//	return nil
-	//}
 
-	//}
 
 	return &subData
 }

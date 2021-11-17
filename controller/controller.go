@@ -6,14 +6,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
-	"github.com/leizongmin/huobiapi"
 	"net/http"
-	"redisData/huobi"
 	"redisData/logic"
 	"redisData/model"
 	"redisData/pkg/logger"
 	"redisData/utils"
-	"strings"
 	"sync"
 	"time"
 )
@@ -128,120 +125,7 @@ func GetRedisData(c *gin.Context) {
 
 }
 
-// GetRedisData4 自定义订阅symbol和时间
-func GetRedisData4(c *gin.Context) {
-	//升级get请求为webSocket协议
-	ws, _ := upGrader.Upgrade(c.Writer, c.Request, nil)
-	wsConn := &WsConn{
-		ws,
-		sync.RWMutex{},
-	}
-	//if err != nil {
-	//	fmt.Println(err)
-	//	return
-	//}
-	defer ws.Close() //返回前关闭
-	for {
-		//读取ws中的数据
-		mt, message, err := wsConn.Conn.ReadMessage()
-		//打印参数
-		fmt.Println(string(message))
-		if err != nil {
-			fmt.Println(err)
-			break
-		}
-		//拿到参数进行校验
-		//如果含有1min中直接请求redis
-		b := strings.Contains(string(message), "1min")
-		if b == true {
-			//直接查询redis
-			go func() {
-				for {
-					data, err := logic.GetDataByKey(string(message))
-					//修改，当拿不到key重新订阅，10秒订阅一次
-					if err == redis.Nil {
-						err = wsConn.Conn.WriteMessage(mt, []byte("key不存在，准备开始缓存"))
-						if err != nil {
-							return
-						}
-						logic.StartSetKlineData()
-						time.Sleep(10 * time.Second)
-					}
-					websocketData := utils.Strval(data)
-					wsConn.Mux.Lock()
-					err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
-					wsConn.Mux.Unlock()
-					if err != nil {
-						fmt.Println(err)
-						ws.Close()
-						return
-					}
-					time.Sleep(time.Second * 2)
-				}
-			}()
-		}
 
-		//如果不含有1min，缓存到redis在redis里面拿
-
-		//fmt.Println(string(message))
-		//对数据进行切割，读取参数
-		newMessage := message[1 : len(message)-1]
-		//fmt.Println(string(newMessage))
-		res := utils.Split(string(newMessage), ".")
-		//截取2和4作为参数
-		//传入参数直接请求 存取redis
-		go huobi.NewSubscribeParam(res[1], res[3])
-		//如果请求的是market.ethbtc.kline.5min,订阅这条信息，然后再返回
-		//打印请求参数
-
-		go func() {
-			for {
-				data, err := logic.GetDataByKey(string(message))
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-				websocketData := utils.Strval(data)
-				//fmt.Println(websocketData)
-				wsConn.Mux.Lock()
-				err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
-				wsConn.Mux.Unlock()
-				time.Sleep(time.Second * 2)
-			}
-
-			//}()
-			//通过redis的key取值
-
-			//写入ws数据
-			//go func() {
-			//	for {
-			//		data, err := logic.GetDataByKey(strMsg)
-			//		//修改，当拿不到key重新订阅，10秒订阅一次
-			//		if err == redis.Nil {
-			//			err = wsConn.Conn.WriteMessage(mt, []byte("key不存在，准备开始缓存"))
-			//			if err != nil {
-			//				return
-			//			}
-			//			logic.StartSetKlineData()
-			//			time.Sleep(10 * time.Second)
-			//		}
-			//		websocketData := utils.Strval(data)
-			//		wsConn.Mux.Lock()
-			//		err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
-			//		wsConn.Mux.Unlock()
-			//		if err != nil {
-			//			fmt.Println(err)
-			//			ws.Close()
-			//			return
-			//		}
-			//		time.Sleep(time.Second * 2)
-			//	}
-			//
-		}()
-
-	}
-
-}
 
 // QuotationController 请求行情数据接口
 func QuotationController(c *gin.Context) {
@@ -309,24 +193,7 @@ func QuotationController(c *gin.Context) {
 
 //https://api.huobi.pro/market/history/kline?period=1day&size=200&symbol=btcusdt
 
-// KlineHistoryController 每10秒缓存300条数据  已经移入start里面了
-func KlineHistoryController(c *gin.Context) {
-	//参数校验-无
-	//逻辑处理
-	go func() {
-		err := logic.SetKlineHistory()
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-	}()
 
-	//返回参数
-	c.JSON(http.StatusOK, gin.H{
-		"msg": "保存K线图历史数据成功",
-	})
-
-}
 
 // GetKlineHistoryController 通过key获取历史300条数据
 func GetKlineHistoryController(c *gin.Context) {
@@ -424,78 +291,4 @@ func GetKlineHistoryController(c *gin.Context) {
 	return
 }
 
-//1.启动一个websocket 客户端
-func GetRedisData3(c *gin.Context) {
-	market, err := huobiapi.NewMarket()
-	if err != nil {
-		fmt.Printf("huobiapi.NewMarket() %v", err)
-		return
-	}
-	//升级get请求为webSocket协议
-	ws, _ := upGrader.Upgrade(c.Writer, c.Request, nil)
-	wsConn := &WsConn{
-		ws,
-		sync.RWMutex{},
-	}
-	//if err != nil {
-	//	fmt.Println(err)
-	//	return
-	//}
-	defer ws.Close() //返回前关闭
-	for {
-		//2.读取ws中的数据
-		mt, message, err := wsConn.Conn.ReadMessage()
-		err = market.Subscribe(string(message), func(topic string, hjson *huobiapi.JSON) {
-			// 收到数据更新时回调,收到信息返回给前端
-			jsonData, _ := hjson.MarshalJSON()
-			wsConn.Mux.Lock()
-			//3.写数据给
-			err = wsConn.Conn.WriteMessage(mt, jsonData)
-			if err != nil {
-				fmt.Printf("webSocket Write Data fail err%v", err)
-			}
-			wsConn.Mux.Unlock()
-			//fmt.Println(topic, hjson)
-		})
-		if err != nil {
-			fmt.Printf("market.Subscribe fail %v", err)
-			return
-		}
 
-		//对数据进行切割，读取参数
-		//如果请求的是market.ethbtc.kline.5min,订阅这条信息，然后再返回
-		//strMsg := string(message)
-		//打印请求参数
-		//fmt.Println(strMsg)
-
-		//写入ws数据
-		//go func() {
-		//	for {
-		//		data, err := logic.GetDataByKey(strMsg)
-		//		//修改，当拿不到key重新订阅，10秒订阅一次
-		//		if err == redis.Nil {
-		//			err = wsConn.Conn.WriteMessage(mt, []byte("key不存在，准备开始缓存"))
-		//			if err != nil {
-		//				return
-		//			}
-		//			logic.StartSetKlineData()
-		//			time.Sleep(10 * time.Second)
-		//		}
-		//		websocketData := utils.Strval(data)
-		//		wsConn.Mux.Lock()
-		//		err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
-		//		wsConn.Mux.Unlock()
-		//		if err != nil {
-		//			fmt.Println(err)
-		//			ws.Close()
-		//			return
-		//		}
-		//		time.Sleep(time.Second * 2)
-		//	}
-		//
-		//}()
-
-	}
-	market.Loop()
-
-}
