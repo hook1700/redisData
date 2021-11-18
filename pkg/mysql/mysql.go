@@ -7,8 +7,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 	"log"
-	MysqlLog "redisData/pkg/logger"
-	"redisData/pkg/logger/zapgorm2"
 )
 
 // DB gorm.DB 对象
@@ -34,15 +32,15 @@ func ConnectDB() *gorm.DB {
 		DSN: dsn,
 	})
 	// 追踪mysql日志
-	logger := zapgorm2.New(MysqlLog.Logger)
-	logger.SetAsDefault()
+	//logger := zapgorm2.New(MysqlLog.Logger)
+	//logger.SetAsDefault()
 	// 准备数据库连接池
 	DB, err = gorm.Open(gormConfig, &gorm.Config{
 		NamingStrategy: schema.NamingStrategy{
 			TablePrefix:   prefix, // 表名前缀，`User` 的表名应该是 `go_users`
 			SingularTable: true,   // 使用单数表名，启用该选项，此时，`User` 的表名应该是 `go_user`
 		},
-		Logger: logger,
+		//Logger: logger,
 	})
 	if err != nil {
 		log.Fatal(err)
