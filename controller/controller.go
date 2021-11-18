@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
-	"github.com/gorilla/websocket"
 	"net/http"
 	"redisData/logic"
 	"redisData/model"
@@ -65,26 +64,18 @@ func GetRedisData(c *gin.Context) {
 		ws,
 		sync.RWMutex{},
 	}
-	defer func(ws *websocket.Conn) {
-		err := ws.Close()
-		if err != nil {
-			logger.Error(err)
-		}
-	}(ws) //返回前关闭
 	for {
-		//wsConn.Mux.Lock()
 		//读取ws中的数据
 		mt, message, err := wsConn.Conn.ReadMessage()
-		//wsConn.Mux.Unlock()
 		if err != nil {
-			fmt.Println(err)
-			break
+			logger.Info(err)
+			continue
 		}
 		//对数据进行切割，读取参数
 		//如果请求的是market.ethbtc.kline.5min,订阅这条信息，然后再返回
 		strMsg := string(message)
 		//打印请求参数
-		fmt.Println(strMsg)
+		logger.Info(strMsg)
 
 		//写入ws数据
 		go func() {
@@ -99,22 +90,20 @@ func GetRedisData(c *gin.Context) {
 					StartSetKlineDataErr := logic.StartSetKlineData()
 					if StartSetKlineDataErr != nil {
 						logger.Error(StartSetKlineDataErr)
-						return
+						continue
 					}
 					time.Sleep(10 * time.Second)
 				}
 				websocketData := utils.Strval(data)
-				wsConn.Mux.Lock()
 				err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
-				wsConn.Mux.Unlock()
 				if err != nil {
 					logger.Error(err)
-					CloseErr := ws.Close()
+					CloseErr := wsConn.Close()
 					if CloseErr != nil {
 						logger.Error(CloseErr)
-						return
+						continue
 					}
-					return
+					continue
 				}
 				time.Sleep(time.Second * 2)
 			}
@@ -137,12 +126,6 @@ func QuotationController(c *gin.Context) {
 		ws,
 		sync.RWMutex{},
 	}
-	defer func(ws *websocket.Conn) {
-		err := ws.Close()
-		if err != nil {
-			logger.Error(err)
-		}
-	}(ws)
 	for {
 		//读取ws中的数据，数据是"market.btcusdt.depth.step1"类型
 		mt, message, messageErr := wsConn.Conn.ReadMessage()
@@ -175,7 +158,7 @@ func QuotationController(c *gin.Context) {
 					wsConn.Mux.Unlock()
 					if WriteMessageErr != nil {
 						logger.Error(WriteMessageErr)
-						CloseErr := ws.Close()
+						CloseErr := wsConn.Close()
 						if CloseErr != nil {
 							logger.Error(CloseErr)
 							return
