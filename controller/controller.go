@@ -78,7 +78,7 @@ func GetRedisData(c *gin.Context) {
 		logger.Info(strMsg)
 
 		//写入ws数据
-		go func() {
+		go func(wsConn *WsConn) {
 			for {
 				data, GetDataByKeyErr := logic.GetDataByKey(strMsg)
 				//修改，当拿不到key重新订阅，10秒订阅一次
@@ -97,6 +97,9 @@ func GetRedisData(c *gin.Context) {
 				websocketData := utils.Strval(data)
 				err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
 				if err != nil {
+					logger.Info(mt)
+					logger.Info(websocketData)
+					logger.Info(data)
 					logger.Error(err)
 					CloseErr := wsConn.Close()
 					if CloseErr != nil {
@@ -108,7 +111,7 @@ func GetRedisData(c *gin.Context) {
 				time.Sleep(time.Second * 2)
 			}
 
-		}()
+		}(wsConn)
 
 	}
 
