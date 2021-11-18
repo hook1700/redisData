@@ -1,2 +1,0 @@
-{"level":"ERROR","time":"2021-11-17T11:36:43.244+0800","caller":"redisData/main.go:36","msg":"init redis fail err","error":"dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it."}
-{"level":"ERROR","time":"2021-11-17T15:35:24.095+0800","caller":"redisData/main.go:36","msg":"init redis fail err","error":"dial tcp 127.0.0.1:6379: connectex: No connection could be made because the target machine actively refused it."}
