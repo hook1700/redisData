@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"redisData/dao/mysql"
 	"redisData/dao/redis"
-	"redisData/huobi"
 	"redisData/model"
 	"redisData/pkg/logger"
 	"redisData/pkg/translate"
@@ -24,14 +23,14 @@ var (
 // StartSetKlineData main.go时，默认缓存16种symbol,1min的数据
 func StartSetKlineData() error {
 
-	go huobi.NewSubscribe()
+	go NewSubscribe()
 	return nil
 }
 
 // StartSetQuotation 自动获取行情数据
 func StartSetQuotation() error {
 
-	go huobi.NewQuotation()
+	go NewQuotation()
 	return nil
 }
 
@@ -48,8 +47,8 @@ func GetDataByKey(key string) (interface{}, error) {
 	data := []byte(kline)
 	var i interface{}
 	//3.解析
-	if err := json.Unmarshal(data, &i); err != nil {
-		fmt.Println(err)
+	if UnmarshalErr := json.Unmarshal(data, &i); UnmarshalErr != nil {
+		fmt.Println(UnmarshalErr)
 		return nil, ErrorUnmarshalFail
 	}
 	return i, nil
@@ -199,7 +198,7 @@ func TranDecimalScale(symbol string, data model.KlineData) *model.KlineData {
 }
 
 // TranDecimalScale2 封装自由币换算,修改下参数,从symbol改成sub, 这个方法是订阅5分钟数据时调用
-func TranDecimalScale2(sub string, subData huobi.SubData) *huobi.SubData {
+func TranDecimalScale2(sub string, subData SubData) *SubData {
 	//字符串切割 去双引号
 	sub = string([]byte(sub)[1 : len(sub)-1])
 	//通过“.”分割,取出symbol

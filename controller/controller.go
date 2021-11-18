@@ -89,13 +89,13 @@ func GetRedisData(c *gin.Context) {
 		//写入ws数据
 		go func() {
 			for {
-				data, err := logic.GetDataByKey(strMsg)
+				data, GetDataByKeyErr := logic.GetDataByKey(strMsg)
 				//修改，当拿不到key重新订阅，10秒订阅一次
-				if err == redis.Nil {
+				if GetDataByKeyErr == redis.Nil {
 					//err = wsConn.Conn.WriteMessage(mt, []byte("key不存在，准备开始缓存"))
-					if err != nil {
-						return
-					}
+					//if err != nil {
+					//	return
+					//}
 					StartSetKlineDataErr := logic.StartSetKlineData()
 					if StartSetKlineDataErr != nil {
 						logger.Error(StartSetKlineDataErr)
@@ -124,8 +124,6 @@ func GetRedisData(c *gin.Context) {
 	}
 
 }
-
-
 
 // QuotationController 请求行情数据接口
 func QuotationController(c *gin.Context) {
@@ -192,8 +190,6 @@ func QuotationController(c *gin.Context) {
 }
 
 //https://api.huobi.pro/market/history/kline?period=1day&size=200&symbol=btcusdt
-
-
 
 // GetKlineHistoryController 通过key获取历史300条数据
 func GetKlineHistoryController(c *gin.Context) {
@@ -272,11 +268,13 @@ func GetKlineHistoryController(c *gin.Context) {
 	//historyData, err := logic.GetKlineHistory(symbol)
 	if err != nil {
 		if err == redis.Nil {
-			err := logic.SetKlineHistory()
+			SetKlineHistoryErr := logic.SetKlineHistory()
 			//c.JSON(http.StatusOK, gin.H{
 			//	"msg": "正在缓存数据,请2s后继续访问",
 			//})
-			fmt.Println(err)
+			if SetKlineHistoryErr != nil {
+				logger.Error(SetKlineHistoryErr)
+			}
 			time.Sleep(10 * time.Second)
 			return
 		}
@@ -289,5 +287,3 @@ func GetKlineHistoryController(c *gin.Context) {
 	})
 	return
 }
-
-

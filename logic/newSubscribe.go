@@ -1,4 +1,4 @@
-package huobi
+package logic
 
 import (
 	"encoding/json"
@@ -271,5 +271,3 @@ func QuotationSubscribe(markServer *market.Market, key int, value model.Symbol) 
 		return
 	}
 }
-
-
