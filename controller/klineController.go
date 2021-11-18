@@ -81,7 +81,7 @@ func GetRedisData2(c *gin.Context) {
 		//把用户传进来的消息进行处理 msg样式 "market.btcusdt.kline.1min"
 		msg := string(message)
 		//-------------
-		logger.Info(msg)
+		//logger.Info(msg)
 		//当请求数据中含有1min或1step这些为已经缓存数据,直接去redis拿
 		//if strings.Contains(msg,"1min")||strings.Contains(msg,"step1"){
 		go func() {
@@ -134,7 +134,7 @@ func GetRedisData2(c *gin.Context) {
 				time.Sleep(time.Second * 2)
 			}
 		}()
-		logger.Info("这是第二个流程")
+		//logger.Info("这是第二个流程")
 
 	}
 
@@ -144,7 +144,7 @@ func WsHandle(c *gin.Context) {
 	//升级get请求为webSocket协议
 	ws, CloseErr := upGrader.Upgrade(c.Writer, c.Request, nil)
 	if CloseErr != nil {
-		logger.Info(CloseErr.Error())
+		logger.Error(CloseErr)
 	}
 	wsConn := &WsConn{
 		ws,
@@ -159,25 +159,25 @@ func WsHandle(c *gin.Context) {
 	for {
 		market, err := huobi.NewMarket()
 		if err != nil {
-			logger.Info(111)
-			logger.Info(err)
-			logger.Info(666)
+			//logger.Info(111)
+			logger.Error(err)
+			//logger.Info(666)
 		}
 		//读取ws中的数据
 		mt, message, err := wsConn.Conn.ReadMessage()
 		if err != nil {
-			logger.Info(666)
+			//logger.Info(666)
 			marketErr := market.Close()
 			if marketErr != nil {
-				logger.Info("关闭连接失败1")
-				logger.Info(marketErr.Error())
-				logger.Info("关闭连接失败2")
+				//logger.Info("关闭连接失败1")
+				logger.Error(marketErr)
+				//logger.Info("关闭连接失败2")
 				return
 			} else {
 				logger.Info("关闭成功")
 			}
-			logger.Info(err)
-			logger.Info(666)
+			logger.Error(err)
+			//logger.Info(666)
 			break
 		}
 		//对数据进行切割，读取参数
@@ -185,7 +185,7 @@ func WsHandle(c *gin.Context) {
 		msg := string(message)
 		newMsg := string([]byte(msg)[1 : len([]byte(msg))-1])
 		//打印请求参数
-		logger.Info(newMsg)
+		//logger.Info(newMsg)
 
 		if strings.Contains(msg, "1min") || strings.Contains(msg, "step1") {
 			go func() {
@@ -196,7 +196,7 @@ func WsHandle(c *gin.Context) {
 						logger.Error(errors.New(msg + "：key不存在，准备开始缓存"))
 						StartSetKlineDataErr := logic.StartSetKlineData()
 						if StartSetKlineDataErr != nil {
-							logger.Info(StartSetKlineDataErr)
+							logger.Error(StartSetKlineDataErr)
 							return
 						}
 						time.Sleep(10 * time.Second)
@@ -204,18 +204,18 @@ func WsHandle(c *gin.Context) {
 					websocketData := utils.Strval(data)
 					if len(websocketData) <= 0 {
 						logger.Info("空数据，不推送:websocketData")
-						logger.Info(websocketData)
+						//logger.Info(websocketData)
 						return
 					}
 					wsConn.Mux.Lock()
 					err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
-					logger.Info(websocketData)
+					//logger.Info(websocketData)
 					wsConn.Mux.Unlock()
 					if err != nil {
-						logger.Info(err)
+						logger.Error(err)
 						wsErr := ws.Close()
 						if wsErr != nil {
-							logger.Info(wsErr)
+							logger.Error(wsErr)
 							return
 						}
 						return
@@ -231,7 +231,7 @@ func WsHandle(c *gin.Context) {
 
 					go func() {
 						err = market.Subscribe(newMsg, func(topic string, hjson *huobiapi.JSON) {
-							logger.Info(msg)
+							//logger.Info(msg)
 							if err != nil {
 								logger.Error(err)
 							}
@@ -247,8 +247,8 @@ func WsHandle(c *gin.Context) {
 							}()
 
 							// 收到数据更新时回调
-							logger.Info(topic)
-							logger.Info(hjson)
+							//logger.Info(topic)
+							//logger.Info(hjson)
 							jsondata, MarshalJSONErr := hjson.MarshalJSON()
 							if err != nil {
 								logger.Error(MarshalJSONErr)
@@ -266,25 +266,25 @@ func WsHandle(c *gin.Context) {
 							//结构体序列化后返回
 							data, MarshalErr := json.Marshal(tranData)
 							if MarshalErr != nil {
-								logger.Info(MarshalErr)
+								logger.Error(MarshalErr)
 								return
 							}
 							if len(data) <= 0 {
 								logger.Info("空数据，不推送:data")
-								logger.Info(data)
+								//logger.Info(data)
 								return
 							}
 							//返回数据给用户
 							wsConn.Mux.Lock()
 							err = wsConn.Conn.WriteMessage(mt, data)
-							logger.Info(data)
+							//logger.Info(data)
 							wsConn.Mux.Unlock()
 							//time.Sleep(2*time.Second)
 							if err != nil {
-								logger.Info(err)
+								logger.Error(err)
 								wsErr := ws.Close()
 								if wsErr != nil {
-									logger.Info(wsErr)
+									logger.Error(wsErr)
 									return
 								}
 
@@ -324,12 +324,12 @@ func WsHandle2(c *gin.Context) {
 	for {
 		market, err := huobi.NewMarket()
 		if err != nil {
-			logger.Info(err)
+			logger.Error(err)
 		}
 		//读取ws中的数据
 		mt, message, err := wsConn.Conn.ReadMessage()
 		if err != nil {
-			logger.Info(err)
+			logger.Error(err)
 			break
 		}
 		//对数据进行切割，读取参数
@@ -337,7 +337,7 @@ func WsHandle2(c *gin.Context) {
 		msg := string(message)
 		newMsg := string([]byte(msg)[1 : len([]byte(msg))-1])
 		//打印请求参数
-		logger.Info(newMsg)
+		//logger.Info(newMsg)
 
 		//写入ws数据
 		go func() {
@@ -345,7 +345,7 @@ func WsHandle2(c *gin.Context) {
 
 				go func() {
 					err = market.Subscribe(newMsg, func(topic string, hjson *huobiapi.JSON) {
-						logger.Info(msg)
+						//logger.Info(msg)
 						if err != nil {
 							logger.Error(err)
 						}
@@ -360,8 +360,8 @@ func WsHandle2(c *gin.Context) {
 
 						}()
 						// 收到数据更新时回调
-						logger.Info(topic)
-						logger.Info(hjson)
+						//logger.Info(topic)
+						//logger.Info(hjson)
 						jsondata, MarshalJSONErr := hjson.MarshalJSON()
 						if err != nil {
 							logger.Error(MarshalJSONErr)
@@ -388,10 +388,10 @@ func WsHandle2(c *gin.Context) {
 						wsConn.Mux.Unlock()
 						//time.Sleep(2*time.Second)
 						if err != nil {
-							logger.Info(err)
+							logger.Error(err)
 							err := ws.Close()
 							if err != nil {
-								logger.Info(err)
+								logger.Error(err)
 								return
 							}
 

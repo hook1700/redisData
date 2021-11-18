@@ -90,10 +90,10 @@ func NewSubscribe() {
 // 从火币网发送socket请求获取数据
 func marketSubscribe(markSer *market.Market, key int, value model.Symbol) {
 	SubscribeERR := markSer.Subscribe(fmt.Sprintf("market.%s.kline.1min", value.Name), func(topic string, hjson *huobiapi.JSON) {
-		logger.Info(fmt.Sprintf("订阅第%v条数据", key))
+		//logger.Info(fmt.Sprintf("订阅第%v条数据", key))
 		// 收到数据更新时回调
-		logger.Info(topic)
-		logger.Info(hjson)
+		//logger.Info(topic)
+		//logger.Info(hjson)
 		//jsonData是订阅后返回的信息 通过MarshalJSON将数据转化成String
 		jsonData, _ := hjson.MarshalJSON()
 		//mapData := utils.JSONToMap(string(jsonData))
@@ -109,8 +109,8 @@ func marketSubscribe(markSer *market.Market, key int, value model.Symbol) {
 			logger.Error(errors.New(fmt.Sprintf("mysql.GetDecimalScaleBySymbols fail err:%v", GetDecimalScaleBySymbolsErr)))
 			return
 		}
-		logger.Info(subData)
-		logger.Info(fmt.Sprintf("%v:%v", value.Name, decimalscale.Value))
+		//logger.Info(subData)
+		//logger.Info(fmt.Sprintf("%v:%v", value.Name, decimalscale.Value))
 		//对数据和自有币位数进行运算，返回修改后的数据
 		var multiple float64 // 浮动倍数
 		if decimalscale.Value > 0 {
@@ -133,7 +133,7 @@ func marketSubscribe(markSer *market.Market, key int, value model.Symbol) {
 			subData.High = translate.Decimal(subData.High * multiple * 0.01)
 			subData.Vol = translate.Decimal(subData.Vol * multiple * 0.01)
 		}
-		logger.Info(subData)
+		//logger.Info(subData)
 		//取出ch当key
 		ch := subData.Ch
 		//把修改后的对象反序列化，存进redis
@@ -208,8 +208,8 @@ func QuotationSubscribe(markServer *market.Market, key int, value model.Symbol) 
 			logger.Error(errors.New(fmt.Sprintf("json.Unmarshal subData fail err:%v", UnmarshalErr)))
 			return
 		}
-		logger.Info("输出原来行情的数据")
-		logger.Info(data)
+		//logger.Info("输出原来行情的数据")
+		//logger.Info(data)
 
 		//自由币换算
 		var decimalscale model.DecimalScale
@@ -245,8 +245,8 @@ func QuotationSubscribe(markServer *market.Market, key int, value model.Symbol) 
 				data.Bids[i][0] = translate.Decimal(data.Bids[i][0] * multiple * 0.01)
 			}
 		}
-		logger.Info("输出自由币换算后行情的数据")
-		logger.Info(data)
+		//logger.Info("输出自由币换算后行情的数据")
+		//logger.Info(data)
 		//取出ch当key使用
 		ch := data.Ch
 		//序列化，存进redis
