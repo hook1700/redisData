@@ -3,17 +3,17 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"github.com/go-redis/redis"
 	"redisData/pkg/logger"
+	"redisData/utils"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
 	"github.com/iszmxw/huobiapi"
 
 	"net/http"
 	"redisData/logic"
-	"redisData/utils"
 	"sync"
 	"time"
 )
@@ -45,160 +45,106 @@ func WsHandle(c *gin.Context) {
 		ws,
 		sync.RWMutex{},
 	}
-	defer func(ws *websocket.Conn) {
-		err := ws.Close()
-		if err != nil {
-			logger.Error(err)
-		}
-	}(ws) //返回前关闭
-	for {
-		market, err := huobiapi.NewMarket()
-		if err != nil {
-			//logger.Info(111)
-			logger.Error(err)
-			return
-			//logger.Info(666)
-		}
-		//读取ws中的数据
-		mt, message, ReadMessageErr := wsConn.Conn.ReadMessage()
-		if ReadMessageErr != nil {
-			//logger.Info(666)
-			marketErr := market.Close()
-			if marketErr != nil {
-				//logger.Info("关闭连接失败1")
-				logger.Error(marketErr)
-				//logger.Info("关闭连接失败2")
-				return
-			} else {
-				logger.Info("关闭成功")
-			}
-			logger.Error(ReadMessageErr)
-			//logger.Info(666)
-			break
-		}
-		//对数据进行切割，读取参数
-		//如果请求的是 market.ethbtc.kline.5min ,订阅这条信息，然后再返回
-		msg := string(message)
-		newMsg := string([]byte(msg)[1 : len([]byte(msg))-1])
-		//打印请求参数
-		//logger.Info(newMsg)
-
-		if strings.Contains(msg, "1min") || strings.Contains(msg, "step1") {
-			go func() {
-				for {
-					data, GetDataByKeyErr := logic.GetDataByKey(msg)
-					//修改，当拿不到key重新订阅，10秒订阅一次
-					if GetDataByKeyErr == redis.Nil {
-						logger.Error(errors.New(msg + "：key不存在，准备开始缓存"))
-						StartSetKlineDataErr := logic.StartSetKlineData()
-						if StartSetKlineDataErr != nil {
-							logger.Error(StartSetKlineDataErr)
-							return
-						}
-						time.Sleep(10 * time.Second)
-					}
-					websocketData := utils.Strval(data)
-					if len(websocketData) <= 0 {
-						logger.Info("空数据，不推送:websocketData")
-						//logger.Info(websocketData)
-						return
-					}
-					wsConn.Mux.Lock()
-					err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
-					//logger.Info(websocketData)
-					wsConn.Mux.Unlock()
-					if err != nil {
-						logger.Error(err)
-						wsErr := ws.Close()
-						if wsErr != nil {
-							logger.Error(wsErr)
-							return
-						}
-						return
-					}
-					time.Sleep(time.Second * 2)
-				}
-
-			}()
-		} else {
-			//写入ws数据
-			go func() {
-				for {
-
-					go func() {
-						err = market.Subscribe(newMsg, func(topic string, hjson *huobiapi.JSON) {
-							//logger.Info(msg)
-							if err != nil {
-								logger.Error(err)
-							}
-							//订阅成功
-							//logger.Info("订阅成功")
-							//120后自动取消订阅
-							go func() {
-								time.Sleep(60 * time.Minute)
-								//logger.Info("取消订阅成功")
-								market.Unsubscribe(newMsg)
-								//market.ReceiveTimeout
-
-							}()
-
-							// 收到数据更新时回调
-							//logger.Info(topic)
-							//logger.Info(hjson)
-							jsondata, MarshalJSONErr := hjson.MarshalJSON()
-							if err != nil {
-								logger.Error(MarshalJSONErr)
-								return
-							}
-							//把jsondata反序列化后进行，自由币判断运算
-							klineData := logic.SubData{}
-							err = json.Unmarshal(jsondata, &klineData)
-							if err != nil {
-								logger.Error(err)
-								return
-							}
-							//自由币换算
-							tranData := logic.TranDecimalScale2(msg, klineData)
-							//结构体序列化后返回
-							data, MarshalErr := json.Marshal(tranData)
-							if MarshalErr != nil {
-								logger.Error(MarshalErr)
-								return
-							}
-							if len(data) <= 0 {
-								logger.Info("空数据，不推送:data")
-								//logger.Info(data)
-								return
-							}
-							//返回数据给用户
-							wsConn.Mux.Lock()
-							err = wsConn.Conn.WriteMessage(mt, data)
-							//logger.Info(data)
-							wsConn.Mux.Unlock()
-							//time.Sleep(2*time.Second)
-							if err != nil {
-								logger.Error(err)
-								wsErr := ws.Close()
-								if wsErr != nil {
-									logger.Error(wsErr)
-									return
-								}
-
-							}
-
-						})
-						go func() {
-							time.Sleep(60 * time.Second)
-							market.Unsubscribe(newMsg)
-						}()
-					}()
-					market.Loop()
-
-				}
-
-			}()
-		}
-
+	//读取ws中的数据
+	mt, message, ReadMessageErr := wsConn.Conn.ReadMessage()
+	if ReadMessageErr != nil {
+		logger.Error(ReadMessageErr)
 	}
+	//对数据进行切割，读取参数
+	//如果请求的是 market.ethbtc.kline.5min ,订阅这条信息，然后再返回
+	msg := string(message)
+	newMsg := string([]byte(msg)[1 : len([]byte(msg))-1])
+	if strings.Contains(msg, "1min") || strings.Contains(msg, "step1") {
+		for {
+			data, GetDataByKeyErr := logic.GetDataByKey(msg)
+			//修改，当拿不到key重新订阅，10秒订阅一次
+			if GetDataByKeyErr == redis.Nil {
+				logger.Error(errors.New(msg + "：key不存在，准备开始缓存"))
+				time.Sleep(10 * time.Second)
+			}
+			websocketData := utils.Strval(data)
+			if len(websocketData) <= 0 {
+				logger.Info("空数据，不推送:websocketData")
+				continue
+			}
+			wsConn.Mux.Lock()
+			WriteMessageErr := wsConn.Conn.WriteMessage(mt, []byte(websocketData))
+			wsConn.Mux.Unlock()
+			if WriteMessageErr != nil {
+				logger.Error(WriteMessageErr)
+				wsErr := wsConn.Close()
+				if wsErr != nil {
+					logger.Error(wsErr)
+					continue
+				}
+				continue
+			}
+			time.Sleep(time.Second * 2)
+		}
+	} else {
+		market, err := huobiapi.NewMarket()
+		err = market.Subscribe(newMsg, func(topic string, hjson *huobiapi.JSON) {
+			//logger.Info(msg)
+			//订阅成功
+			//logger.Info("订阅成功")
+			//120后自动取消订阅
+			go func() {
+				time.Sleep(60 * time.Minute)
+				//logger.Info("取消订阅成功")
+				market.Unsubscribe(newMsg)
+				//market.ReceiveTimeout
 
+			}()
+			// 收到数据更新时回调
+			//logger.Info(topic)
+			//logger.Info(hjson)
+			jsondata, MarshalJSONErr := hjson.MarshalJSON()
+			if err != nil {
+				logger.Error(MarshalJSONErr)
+				return
+			}
+			//把jsondata反序列化后进行，自由币判断运算
+			klineData := logic.SubData{}
+			err = json.Unmarshal(jsondata, &klineData)
+			if err != nil {
+				logger.Error(err)
+				return
+			}
+			//自由币换算
+			tranData := logic.TranDecimalScale2(msg, klineData)
+			//结构体序列化后返回
+			data, MarshalErr := json.Marshal(tranData)
+			if MarshalErr != nil {
+				logger.Error(MarshalErr)
+				return
+			}
+			if len(data) <= 0 {
+				logger.Info("空数据，不推送:data")
+				//logger.Info(data)
+				return
+			}
+			//返回数据给用户
+			wsConn.Mux.Lock()
+			err = wsConn.Conn.WriteMessage(mt, data)
+			//logger.Info(data)
+			wsConn.Mux.Unlock()
+			//time.Sleep(2*time.Second)
+			if err != nil {
+				logger.Error(err)
+				wsErr := wsConn.Close()
+				if wsErr != nil {
+					logger.Error(wsErr)
+					return
+				}
+			}
+
+		})
+		if err != nil {
+			logger.Error(err)
+		}
+		go func() {
+			time.Sleep(60 * time.Second)
+			market.Unsubscribe(newMsg)
+		}()
+	}
 }

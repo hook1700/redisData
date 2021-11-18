@@ -44,12 +44,19 @@ func main() {
 	fmt.Println("success")
 	//初始化routes
 	r := routes.SetUp()
-	//err := r.RunTLS(fmt.Sprintf(":%d", viper.GetInt("port")), "./conf/ssl.pem", "./conf/ssl.key")
-	//if err != nil {
-	//	fmt.Println(err)
-	//	return
-	//}
-	r.Run(fmt.Sprintf(":%d", viper.GetInt("port")))
+	if viper.GetInt("https") == 1 {
+		err := r.RunTLS(fmt.Sprintf(":%d", viper.GetInt("port")), "./conf/ssl.pem", "./conf/ssl.key")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	} else {
+		err := r.Run(fmt.Sprintf(":%d", viper.GetInt("port")))
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
 	//宕机处理
 	defer func() {
 		recover()
