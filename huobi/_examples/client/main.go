@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/leizongmin/huobiapi"
+	"github.com/iszmxw/huobiapi"
 )
 
 func main() {

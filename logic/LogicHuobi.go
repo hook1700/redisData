@@ -2,8 +2,8 @@ package logic
 
 import (
 	"fmt"
-	"github.com/leizongmin/huobiapi"
-	"github.com/leizongmin/huobiapi/market"
+	"github.com/iszmxw/huobiapi"
+	"github.com/iszmxw/huobiapi/market"
 )
 
 func NewMark()  *market.Market {

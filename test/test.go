@@ -4,7 +4,7 @@ package test
 //	"encoding/json"
 //	"errors"
 //	"fmt"
-//	"github.com/leizongmin/huobiapi"
+//	"github.com/iszmxw/huobiapi"
 //	"redisData/dao/mysql"
 //	"redisData/dao/redis"
 //	"redisData/model"

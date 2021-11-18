@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
-	"github.com/leizongmin/huobiapi"
+	"github.com/iszmxw/huobiapi"
 	"redisData/huobi"
 
 	"net/http"
