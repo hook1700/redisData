@@ -94,8 +94,11 @@ func GetRedisData(c *gin.Context) {
 					}
 					time.Sleep(10 * time.Second)
 				}
+
 				websocketData := utils.Strval(data)
+				wsConn.Mux.Lock()
 				err = wsConn.Conn.WriteMessage(mt, []byte(websocketData))
+				wsConn.Mux.Unlock()
 				if err != nil {
 					logger.Info(mt)
 					logger.Info(websocketData)
@@ -142,7 +145,7 @@ func QuotationController(c *gin.Context) {
 		//分割
 		//resultList := utils.Split(strMsg, ".")
 
-		go func() {
+		go func(wsConn *WsConn) {
 			for {
 				data, err := logic.GetDataByKey(strMsg)
 				//修改，当拿不到key重新订阅，10秒订阅一次
@@ -171,7 +174,7 @@ func QuotationController(c *gin.Context) {
 				}
 				time.Sleep(time.Second * 2)
 			}
-		}()
+		}(wsConn)
 	}
 }
 
